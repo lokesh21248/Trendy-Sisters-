@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
+import { ClerkProvider } from "@clerk/nextjs"
+import { shadcn } from "@clerk/ui/themes"
 import "./globals.css"
-import { Header } from "@/components/layout/Header"
-import { MobileHeader } from "@/components/layout/MobileHeader"
-import { MobileBottomNav } from "@/components/layout/MobileBottomNav"
-import { Footer } from "@/components/layout/Footer"
+import { StoreLayoutShell } from "@/components/layout/StoreLayoutShell"
 import { CartProvider } from "@/contexts/CartContext"
 import { WishlistProvider } from "@/contexts/WishlistContext"
 
@@ -62,28 +61,15 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen w-full flex flex-col overflow-x-hidden">
-        <CartProvider>
-          <WishlistProvider>
-            {/* Desktop Header */}
-            <div className="hidden md:block w-full">
-              <Header />
-            </div>
-            {/* Mobile Header */}
-            <div className="block md:hidden w-full">
-              <MobileHeader />
-            </div>
-
-            <main className="w-full flex-1">{children}</main>
-
-            <Footer />
-
-            {/* Mobile Bottom Navigation */}
-            <div className="block md:hidden">
-              <MobileBottomNav />
-            </div>
-          </WishlistProvider>
-        </CartProvider>
+        <ClerkProvider appearance={{ theme: shadcn }}>
+          <CartProvider>
+            <WishlistProvider>
+              <StoreLayoutShell>{children}</StoreLayoutShell>
+            </WishlistProvider>
+          </CartProvider>
+        </ClerkProvider>
       </body>
     </html>
   )
 }
+

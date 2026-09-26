@@ -471,3 +471,14 @@ export interface Database {
     }
   }
 }
+
+export type Category = Database["public"]["Tables"]["categories"]["Row"]
+export type Collection = Database["public"]["Tables"]["collections"]["Row"]
+export type Banner = Database["public"]["Tables"]["banners"]["Row"]
+export type Product = Database["public"]["Tables"]["products"]["Row"]
+export type ProductImage = Database["public"]["Tables"]["product_images"]["Row"]
+export type Order = Database["public"]["Tables"]["orders"]["Row"]
+export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"]
+export type Review = Database["public"]["Tables"]["reviews"]["Row"]
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+

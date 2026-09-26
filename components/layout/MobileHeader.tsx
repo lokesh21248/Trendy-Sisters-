@@ -2,11 +2,12 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { Search, ShoppingBag, User, Heart } from "lucide-react"
+import { Search, ShoppingBag, Heart } from "lucide-react"
 import { useCart } from "@/contexts/CartContext"
 import { useWishlist } from "@/contexts/WishlistContext"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { SignInButton, Show, UserButton } from "@clerk/nextjs"
 
 export function MobileHeader() {
   const { itemCount } = useCart()
@@ -67,15 +68,28 @@ export function MobileHeader() {
         </Link>
 
         {/* Actions */}
-        <div className="flex items-center gap-0.5">
-          <Link
-            href="/account"
-            className="flex items-center justify-center w-10 h-10 rounded-full"
-            style={{ color: "var(--charcoal)" }}
-            aria-label="Account"
-          >
-            <User size={20} />
-          </Link>
+        <div className="flex items-center gap-2">
+          {/* Clerk Auth controls */}
+          <Show when="signed-out">
+            <SignInButton mode="modal">
+              <button
+                className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                style={{ borderColor: "var(--burgundy)", color: "var(--burgundy)" }}
+              >
+                Sign In
+              </button>
+            </SignInButton>
+          </Show>
+          <Show when="signed-in">
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "w-7 h-7",
+                },
+              }}
+            />
+          </Show>
+
           <Link
             href="/wishlist"
             className="relative flex items-center justify-center w-10 h-10 rounded-full"

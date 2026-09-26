@@ -60,11 +60,18 @@ export default function ProductPage() {
     fetchProduct()
   }, [slug, supabase])
 
+  const [added, setAdded] = useState(false)
+
   const handleAddToCart = async () => {
-    if (!product) return
+    if (!product || adding) return
     setAdding(true)
-    await addItem(product.id, quantity)
-    setAdding(false)
+    try {
+      await addItem(product.id, quantity, product)
+      setAdded(true)
+      setTimeout(() => setAdded(false), 1500)
+    } finally {
+      setAdding(false)
+    }
   }
 
   if (loading) {
@@ -261,14 +268,16 @@ export default function ProductPage() {
                 onClick={handleAddToCart}
                 disabled={adding || product.stock === 0}
                 className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: "var(--burgundy)" }}
+                style={{ backgroundColor: added ? "#15803d" : "var(--burgundy)" }}
               >
                 {adding ? (
                   <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : added ? (
+                  <span>✓ Added to Cart!</span>
                 ) : (
                   <ShoppingBag size={16} />
                 )}
-                {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
+                {!adding && !added && (product.stock === 0 ? "Out of Stock" : "Add to Cart")}
               </button>
 
               <button

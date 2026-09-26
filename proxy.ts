@@ -1,12 +1,17 @@
-import { type NextRequest } from "next/server"
+import { clerkMiddleware } from "@clerk/nextjs/server"
 import { updateSession } from "@/lib/supabase/middleware"
 
-export async function proxy(request: NextRequest) {
+export const proxy = clerkMiddleware(async (auth, request) => {
   return await updateSession(request)
-}
+})
+
+export default proxy
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+    "/__clerk/:path*",
   ],
 }
+

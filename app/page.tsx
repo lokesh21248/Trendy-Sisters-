@@ -6,6 +6,9 @@ import { OccasionSection } from "@/components/home/OccasionSection"
 import { WhyUsSection } from "@/components/home/WhyUsSection"
 import Link from "next/link"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export default function HomePage() {
   return (
     <div style={{ backgroundColor: "var(--ivory)" }} className="w-full overflow-x-hidden">

@@ -14,6 +14,8 @@ import { useWishlist } from "@/contexts/WishlistContext"
 import { SearchBar } from "./SearchBar"
 import type { Profile } from "@/types"
 
+import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs"
+
 const navLinks = [
   { label: "Home", href: "/" },
   { label: "Shop", href: "/shop" },
@@ -34,15 +36,23 @@ export function Header() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-      if (user) {
-        supabase.from("profiles").select("*").eq("id", user.id).single()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user || null
+      setUser(u)
+      if (u) {
+        supabase.from("profiles").select("*").eq("id", u.id).maybeSingle()
           .then(({ data }) => setProfile(data))
       }
     })
     const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user || null)
+      const u = session?.user || null
+      setUser(u)
+      if (u) {
+        supabase.from("profiles").select("*").eq("id", u.id).maybeSingle()
+          .then(({ data }) => setProfile(data))
+      } else {
+        setProfile(null)
+      }
     })
     return () => listener?.subscription.unsubscribe()
   }, [supabase])
@@ -91,8 +101,8 @@ export function Header() {
           <Link href="/" className="flex-shrink-0">
             <div className="flex items-center gap-3">
               <div
-                className="w-14 h-14 rounded-full overflow-hidden border-2 flex items-center justify-center"
-                style={{ borderColor: "var(--gold)", backgroundColor: "var(--ivory)" }}
+                className="w-14 h-14 rounded-full border-2 flex items-center justify-center p-1 bg-white"
+                style={{ borderColor: "var(--gold)" }}
               >
                 <Image
                   src="/logo.png"
@@ -101,18 +111,10 @@ export function Header() {
                   height={56}
                   className="object-contain"
                   onError={(e) => {
-                    // Fallback if logo not found
                     const target = e.target as HTMLImageElement
                     target.style.display = "none"
                   }}
                 />
-                {/* Fallback text logo */}
-                <span
-                  className="font-serif font-bold text-xs text-center leading-tight hidden"
-                  style={{ color: "var(--burgundy)" }}
-                >
-                  TS
-                </span>
               </div>
               <div>
                 <div
@@ -193,110 +195,53 @@ export function Header() {
               )}
             </Link>
 
-            {/* Account dropdown */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setAccountOpen(!accountOpen)}
-                className="flex items-center gap-1.5 p-2.5 rounded-full hover:bg-ivory-dark transition-colors"
-                style={{ color: "var(--charcoal)" }}
-              >
-                <User size={20} />
-                <ChevronDown
-                  size={14}
-                  className="transition-transform duration-200"
-                  style={{ transform: accountOpen ? "rotate(180deg)" : "rotate(0)" }}
-                />
-              </button>
+            {/* Clerk Authentication Controls */}
+            <div className="flex items-center gap-2">
+              <Show when="signed-out">
+                <SignInButton mode="modal">
+                  <button
+                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all hover:bg-black/5"
+                    style={{ borderColor: "var(--burgundy)", color: "var(--burgundy)" }}
+                  >
+                    Sign In
+                  </button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <button
+                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90"
+                    style={{ backgroundColor: "var(--burgundy)" }}
+                  >
+                    Sign Up
+                  </button>
+                </SignUpButton>
+              </Show>
 
-              {/* Dropdown */}
-              {accountOpen && (
-                <div
-                  className="absolute right-0 top-full mt-2 w-72 rounded-2xl overflow-hidden shadow-2xl animate-fade-in z-50"
-                  style={{ border: "1px solid var(--border)", backgroundColor: "white" }}
-                >
-                  {user ? (
-                    <>
-                      {/* Profile header */}
-                      <div
-                        className="p-4 flex items-center gap-3"
-                        style={{ background: "linear-gradient(135deg, var(--burgundy), var(--burgundy-light))" }}
-                      >
-                        <div
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg"
-                          style={{ backgroundColor: "var(--gold)" }}
-                        >
-                          {profile?.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
-                        </div>
-                        <div>
-                          <div className="text-white font-semibold">
-                            {profile?.full_name || "My Account"}
-                          </div>
-                          <div className="text-white/70 text-xs">{profile?.phone || user.email}</div>
-                        </div>
-                      </div>
-
-                      {/* Menu items */}
-                      <div className="p-2">
-                        {[
-                          { icon: User, label: "My Account", desc: "Profile & settings", href: "/account" },
-                          { icon: Package, label: "My Orders", desc: "View current & previous orders", href: "/account/orders" },
-                          { icon: MapPin, label: "Addresses", desc: "Home • Office • Add new", href: "/account/addresses" },
-                          { icon: Heart, label: "Wishlist", desc: `${wishlistCount} saved items`, href: "/wishlist" },
-                          { icon: Bell, label: "Notifications", desc: "Order updates & offers", href: "/account/notifications" },
-                        ].map((item) => (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-ivory transition-colors"
-                            onClick={() => setAccountOpen(false)}
-                          >
-                            <item.icon size={18} style={{ color: "var(--burgundy)" }} />
-                            <div>
-                              <div className="text-sm font-medium" style={{ color: "var(--charcoal)" }}>
-                                {item.label}
-                              </div>
-                              <div className="text-xs" style={{ color: "#8B7355" }}>{item.desc}</div>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-
-                      <div className="px-2 pb-2">
-                        <button
-                          onClick={handleSignOut}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 transition-colors text-red-600"
-                        >
-                          <LogOut size={18} />
-                          <span className="text-sm font-medium">Sign Out</span>
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="p-4">
-                      <p className="text-sm mb-4" style={{ color: "var(--charcoal)" }}>
-                        Sign in to view your orders, wishlist and more.
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        <Link
-                          href="/auth/login"
-                          className="btn-primary text-center block rounded-xl py-2.5 text-sm font-semibold"
-                          onClick={() => setAccountOpen(false)}
-                        >
-                          Sign In
-                        </Link>
-                        <Link
-                          href="/auth/signup"
-                          className="btn-secondary text-center block rounded-xl py-2.5 text-sm font-semibold"
-                          onClick={() => setAccountOpen(false)}
-                        >
-                          Create Account
-                        </Link>
-                      </div>
-                    </div>
-                  )}
+              <Show when="signed-in">
+                <div className="flex items-center gap-2 pl-1">
+                  <UserButton
+                    appearance={{
+                      elements: {
+                        avatarBox: "w-9 h-9 border border-[#B88A3B]/40 shadow-sm",
+                      },
+                    }}
+                  >
+                    <UserButton.MenuItems>
+                      <UserButton.Link
+                        label="My Orders"
+                        labelIcon={<Package size={15} />}
+                        href="/account/orders"
+                      />
+                      <UserButton.Link
+                        label="Wishlist"
+                        labelIcon={<Heart size={15} />}
+                        href="/wishlist"
+                      />
+                    </UserButton.MenuItems>
+                  </UserButton>
                 </div>
-              )}
+              </Show>
             </div>
+
           </div>
         </div>
 

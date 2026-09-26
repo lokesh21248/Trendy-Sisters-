@@ -19,11 +19,18 @@ export function SearchBar() {
   const router = useRouter()
   const supabase = createClient()
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined as any)
+  const cacheRef = useRef<Map<string, SearchSuggestion[]>>(new Map())
 
   const fetchSuggestions = useCallback(
     async (q: string) => {
-      if (!q.trim() || q.length < 2) {
+      const queryLower = q.trim().toLowerCase()
+      if (!queryLower || queryLower.length < 2) {
         setSuggestions([])
+        return
+      }
+
+      if (cacheRef.current.has(queryLower)) {
+        setSuggestions(cacheRef.current.get(queryLower)!)
         return
       }
 
@@ -33,13 +40,13 @@ export function SearchBar() {
           supabase
             .from("products")
             .select("id, name, slug, fabric, product_images(image_url)")
-            .ilike("name", `%${q}%`)
+            .ilike("name", `%${queryLower}%`)
             .eq("is_active", true)
             .limit(5),
           supabase
             .from("categories")
             .select("id, name, slug, image_url")
-            .ilike("name", `%${q}%`)
+            .ilike("name", `%${queryLower}%`)
             .eq("is_active", true)
             .limit(3),
         ])
@@ -60,7 +67,9 @@ export function SearchBar() {
           image_url: c.image_url,
         }))
 
-        setSuggestions([...categorySuggestions, ...productSuggestions])
+        const combined = [...categorySuggestions, ...productSuggestions]
+        cacheRef.current.set(queryLower, combined)
+        setSuggestions(combined)
       } finally {
         setLoading(false)
       }

@@ -1,7 +1,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowRight } from "lucide-react"
-import { createClient } from "@/lib/supabase/server"
+import { createStaticClient } from "@/lib/supabase/server"
 import { getSafeImageUrl } from "@/lib/image-utils"
 import type { Category } from "@/types"
 
@@ -18,7 +18,7 @@ const fallbackCategories = [
 
 async function getCategories() {
   try {
-    const supabase = await createClient()
+    const supabase = createStaticClient()
     const { data } = await supabase
       .from("categories")
       .select("*")

@@ -42,7 +42,16 @@ export function ShopPage({ searchParams }: ShopPageProps) {
   const supabase = createClient()
   const PAGE_SIZE = 12
 
-  // Load categories
+  const [debouncedPriceRange, setDebouncedPriceRange] = useState<[number, number]>([0, 50000])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedPriceRange(priceRange)
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [priceRange])
+
+  // Load categories once
   useEffect(() => {
     supabase.from("categories").select("*").eq("is_active", true).order("display_order")
       .then(({ data }) => setCategories(data || []))
@@ -69,7 +78,7 @@ export function ShopPage({ searchParams }: ShopPageProps) {
       if (selectedCategories.length > 0) query = query.in("category_id", selectedCategories)
       if (selectedOccasions.length > 0) query = query.in("occasion", selectedOccasions)
       if (selectedFabrics.length > 0) query = query.in("fabric", selectedFabrics)
-      query = query.gte("price", priceRange[0]).lte("price", priceRange[1])
+      query = query.gte("price", debouncedPriceRange[0]).lte("price", debouncedPriceRange[1])
 
       // Sort
       switch (sort) {
@@ -90,7 +99,7 @@ export function ShopPage({ searchParams }: ShopPageProps) {
     } finally {
       setLoading(false)
     }
-  }, [supabase, params, selectedCategories, selectedOccasions, selectedFabrics, priceRange, sort, page])
+  }, [supabase, params, selectedCategories, selectedOccasions, selectedFabrics, debouncedPriceRange, sort, page])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 

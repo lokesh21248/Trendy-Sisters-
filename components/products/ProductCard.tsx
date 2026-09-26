@@ -19,9 +19,10 @@ function formatPrice(price: number) {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { addItem, loading: cartLoading } = useCart()
+  const { addItem } = useCart()
   const { toggle, isWishlisted } = useWishlist()
   const [adding, setAdding] = useState(false)
+  const [added, setAdded] = useState(false)
   const [imageIndex, setImageIndex] = useState(0)
   const [imgError, setImgError] = useState(false)
 
@@ -38,15 +39,21 @@ export function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    if (adding || product.stock === 0) return
     setAdding(true)
-    await addItem(product.id)
-    setAdding(false)
+    try {
+      await addItem(product.id, 1, product)
+      setAdded(true)
+      setTimeout(() => setAdded(false), 1200)
+    } finally {
+      setAdding(false)
+    }
   }
 
-  const handleWishlist = async (e: React.MouseEvent) => {
+  const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    await toggle(product.id)
+    toggle(product.id)
   }
 
   return (
@@ -182,22 +189,31 @@ export function ProductCard({ product }: ProductCardProps) {
           {/* ADD button */}
           <button
             onClick={handleAddToCart}
-            disabled={adding || cartLoading || product.stock === 0}
+            disabled={adding || product.stock === 0}
             className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 active:scale-95"
             style={{
-              backgroundColor: product.stock === 0 ? "#E5D8C0" : "var(--burgundy)",
+              backgroundColor:
+                product.stock === 0
+                  ? "#E5D8C0"
+                  : added
+                  ? "#15803d"
+                  : "var(--burgundy)",
               color: "white",
-              minWidth: 44,
+              minWidth: 48,
               minHeight: 32,
             }}
             aria-label={product.stock === 0 ? "Out of stock" : "Add to cart"}
           >
             {adding ? (
               <span className="w-3 h-3 border border-white/60 border-t-white rounded-full animate-spin" />
+            ) : added ? (
+              <span>✓ Added</span>
             ) : (
-              <ShoppingBag size={11} />
+              <>
+                <ShoppingBag size={11} />
+                {product.stock === 0 ? "Sold" : "ADD"}
+              </>
             )}
-            {product.stock === 0 ? "Sold" : "ADD"}
           </button>
         </div>
       </div>

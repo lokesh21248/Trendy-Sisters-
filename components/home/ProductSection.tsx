@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
-import { createClient } from "@/lib/supabase/server"
+import { createStaticClient } from "@/lib/supabase/server"
 import { ProductCard, ProductCardSkeleton } from "@/components/products/ProductCard"
 import { sanitizeProduct } from "@/lib/image-utils"
 import type { ProductWithImages } from "@/types"
@@ -16,7 +16,7 @@ interface ProductSectionProps {
 
 async function ProductList({ filter }: { filter: string }) {
   try {
-    const supabase = await createClient()
+    const supabase = createStaticClient()
     let query = supabase
       .from("products")
       .select(`*, product_images(*)`)

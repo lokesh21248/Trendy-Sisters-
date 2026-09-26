@@ -2,6 +2,23 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // Only protect routes that strictly require authentication
+  const protectedPaths = ["/account", "/checkout"]
+  const isProtected = protectedPaths.some((path) => pathname.startsWith(path))
+
+  // Fast path: Check if there's any Supabase auth cookie present
+  const allCookies = request.cookies.getAll()
+  const hasAuthCookie = allCookies.some(
+    (c) => c.name.startsWith("sb-") && c.name.includes("auth-token")
+  )
+
+  // If this is a public route and there are no auth cookies, return immediately without remote network calls
+  if (!isProtected && !hasAuthCookie) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -38,16 +55,10 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect auth-required routes
-  const protectedPaths = ["/account", "/cart", "/checkout", "/wishlist"]
-  const isProtected = protectedPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  )
-
   if (isProtected && !user) {
     const url = request.nextUrl.clone()
     url.pathname = "/auth/login"
-    url.searchParams.set("redirectTo", request.nextUrl.pathname)
+    url.searchParams.set("redirectTo", pathname)
     return NextResponse.redirect(url)
   }
 
