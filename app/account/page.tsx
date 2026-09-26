@@ -1,21 +1,24 @@
-import { createClient } from "@/lib/supabase/server"
+import { currentUser, auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Package, MapPin, Heart, Tag, CreditCard, Bell, ChevronRight, LogOut } from "lucide-react"
+import Image from "next/image"
+import { Package, MapPin, Heart, Tag, CreditCard, Bell, ChevronRight, User } from "lucide-react"
+import { SignOutButton, UserButton } from "@clerk/nextjs"
+
+export const dynamic = "force-dynamic"
 
 export default async function AccountPage() {
-  const supabase = await createClient()
+  const { userId } = await auth()
+  if (!userId) {
+    redirect("/sign-in")
+  }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/auth/login")
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single()
-
-  const typedProfile = profile as any;
+  const user = await currentUser()
+  const displayName = user?.firstName
+    ? `${user.firstName} ${user.lastName || ""}`.trim()
+    : user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] || "Shopper"
+  const email = user?.emailAddresses?.[0]?.emailAddress || ""
+  const avatarUrl = user?.imageUrl
 
   const accountCards = [
     {
@@ -59,31 +62,43 @@ export default async function AccountPage() {
   return (
     <div style={{ backgroundColor: "var(--ivory)" }} className="min-h-screen pb-20 lg:pb-8">
       <div className="max-w-4xl mx-auto px-4 lg:px-6 py-8">
-        
         {/* Profile Header Card */}
-        <div 
+        <div
           className="relative overflow-hidden rounded-3xl p-6 lg:p-8 mb-8"
-          style={{ 
-            background: "linear-gradient(135deg, var(--burgundy) 0%, var(--burgundy-light) 50%, var(--gold-dark) 100%)",
+          style={{
+            background:
+              "linear-gradient(135deg, var(--burgundy) 0%, var(--burgundy-light) 50%, var(--gold-dark) 100%)",
           }}
         >
-          {/* Decorative circles */}
+          {/* Decorative circle */}
           <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 bg-white translate-x-1/3 -translate-y-1/3" />
-          
-          <div className="relative z-10 flex items-center gap-5">
-            <div 
-              className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold border-4 border-white/20 text-white"
-              style={{ backgroundColor: "rgba(184, 138, 59, 0.4)" }}
-            >
-              {typedProfile?.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
+
+          <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-5">
+              <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold border-4 border-white/20 text-white overflow-hidden bg-[#B88A3B]/40">
+                {avatarUrl ? (
+                  <Image
+                    src={avatarUrl}
+                    alt={displayName}
+                    width={80}
+                    height={80}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  displayName[0]?.toUpperCase() || "U"
+                )}
+              </div>
+              <div className="text-white">
+                <h1 className="font-serif text-2xl lg:text-3xl font-bold mb-1">
+                  Hello, {displayName}
+                </h1>
+                <p className="text-white/80 text-sm">{email}</p>
+              </div>
             </div>
-            <div className="text-white">
-              <h1 className="font-serif text-2xl lg:text-3xl font-bold mb-1">
-                Hello, {typedProfile?.full_name || "Guest"}
-              </h1>
-              <p className="text-white/80 text-sm">
-                {typedProfile?.phone || user.email}
-              </p>
+
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2 px-3 flex items-center gap-3">
+              <UserButton />
+              <span className="text-xs font-semibold text-white/90">Manage Profile</span>
             </div>
           </div>
         </div>
@@ -95,35 +110,41 @@ export default async function AccountPage() {
               key={card.title}
               href={card.href}
               className="flex items-center gap-4 p-5 rounded-2xl transition-all hover:scale-[1.02] group bg-white"
-              style={{ border: "1px solid var(--border)", boxShadow: "0 4px 20px var(--shadow)" }}
+              style={{
+                border: "1px solid var(--border)",
+                boxShadow: "0 4px 20px var(--shadow)",
+              }}
             >
-              <div 
+              <div
                 className="w-12 h-12 rounded-full flex items-center justify-center group-hover:bg-burgundy transition-colors"
                 style={{ backgroundColor: "rgba(101,31,53,0.08)" }}
               >
-                <card.icon size={22} className="text-burgundy group-hover:text-white transition-colors" />
+                <card.icon
+                  size={22}
+                  className="text-burgundy group-hover:text-white transition-colors"
+                />
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-charcoal mb-0.5">{card.title}</h3>
-                <p className="text-xs" style={{ color: "#9B8A7A" }}>{card.desc}</p>
+                <p className="text-xs" style={{ color: "#9B8A7A" }}>
+                  {card.desc}
+                </p>
               </div>
               <ChevronRight size={20} style={{ color: "#D5C4A1" }} />
             </Link>
           ))}
         </div>
 
-        {/* Logout Button */}
-        <form action="/auth/logout" method="POST">
-          <button 
-            type="submit"
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm text-red-600 bg-white hover:bg-red-50 transition-colors"
+        {/* Clerk Sign Out Button */}
+        <SignOutButton redirectUrl="/">
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm text-red-600 bg-white hover:bg-red-50 transition-colors cursor-pointer"
             style={{ border: "1px solid var(--border)" }}
           >
-            <LogOut size={18} />
             Sign Out
           </button>
-        </form>
-
+        </SignOutButton>
       </div>
     </div>
   )

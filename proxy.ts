@@ -1,11 +1,15 @@
-import { clerkMiddleware } from "@clerk/nextjs/server"
-import { updateSession } from "@/lib/supabase/middleware"
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
+
+const isProtectedRoute = createRouteMatcher(["/account(.*)"])
 
 export const proxy = clerkMiddleware(async (auth, request) => {
-  return await updateSession(request)
+  if (isProtectedRoute(request)) {
+    await auth.protect()
+  }
 })
 
 export default proxy
+
 
 export const config = {
   matcher: [

@@ -1,9 +1,12 @@
 import { createClient } from "@/lib/supabase/server"
+import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowLeft, Package, ChevronRight, Truck, MapPin } from "lucide-react"
 import { getSafeImageUrl } from "@/lib/image-utils"
+
+export const dynamic = "force-dynamic"
 
 function formatPrice(p: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(p)
@@ -27,12 +30,13 @@ const statusColors: Record<string, { bg: string, text: string }> = {
 }
 
 export default async function OrdersPage() {
+  const { userId } = await auth()
+  if (!userId) redirect("/sign-in")
+
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/auth/login")
-
   const { data: orders } = await supabase
+
     .from("orders")
     .select(`
       *,
@@ -41,7 +45,7 @@ export default async function OrdersPage() {
         products (name, product_images(image_url))
       )
     `)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false })
 
   const typedOrders = orders as any[];
