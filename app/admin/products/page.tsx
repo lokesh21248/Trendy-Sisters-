@@ -30,9 +30,12 @@ import {
 } from "@/types/admin"
 import { AdminImageUpload } from "@/components/admin/AdminImageUpload"
 
-export default function AdminProductsPage() {
+export const dynamic = "force-dynamic"
+
+function AdminProductsContent() {
   const searchParams = useSearchParams()
   const actionParam = searchParams.get("action")
+
 
   const {
     products,
@@ -1081,3 +1084,21 @@ function EditProductModal({
     </div>
   )
 }
+
+export default function AdminProductsPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="p-8 text-center text-sm text-[#8B7355] flex items-center justify-center min-h-[400px]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-[#B88A3B] border-t-transparent rounded-full animate-spin" />
+            <p>Loading Products Catalog…</p>
+          </div>
+        </div>
+      }
+    >
+      <AdminProductsContent />
+    </React.Suspense>
+  )
+}
+

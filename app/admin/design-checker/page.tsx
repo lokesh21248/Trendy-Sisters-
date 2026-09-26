@@ -40,10 +40,13 @@ import {
 import { AdminImageUpload } from "@/components/admin/AdminImageUpload"
 import { uploadImageToStorage } from "@/lib/admin/storage"
 
-export default function DesignCheckerPage() {
+export const dynamic = "force-dynamic"
+
+function DesignCheckerContent() {
   const searchParams = useSearchParams()
   const initialId = searchParams.get("id")
   const initialFilter = searchParams.get("filter") as FilterPill | null
+
 
   const {
     products,
@@ -1307,3 +1310,21 @@ export default function DesignCheckerPage() {
     </div>
   )
 }
+
+export default function DesignCheckerPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="p-8 text-center text-sm text-[#8B7355] flex items-center justify-center min-h-[400px]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-[#B88A3B] border-t-transparent rounded-full animate-spin" />
+            <p>Loading Design Quality Checker…</p>
+          </div>
+        </div>
+      }
+    >
+      <DesignCheckerContent />
+    </React.Suspense>
+  )
+}
+
