@@ -3,17 +3,10 @@
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { useState, useRef, useEffect } from "react"
-import {
-  MapPin, Heart, ShoppingBag, User, ChevronDown,
-  Package, LogOut, Settings, Bookmark, Bell, CreditCard
-} from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { MapPin, Heart, ShoppingBag, Package } from "lucide-react"
 import { useCart } from "@/contexts/CartContext"
 import { useWishlist } from "@/contexts/WishlistContext"
 import { SearchBar } from "./SearchBar"
-import type { Profile } from "@/types"
-
 import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs"
 
 const navLinks = [
@@ -29,52 +22,6 @@ export function Header() {
   const pathname = usePathname()
   const { itemCount } = useCart()
   const { wishlistIds } = useWishlist()
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [accountOpen, setAccountOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const supabase = createClient()
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user || null
-      setUser(u)
-      if (u) {
-        supabase.from("profiles").select("*").eq("id", u.id).maybeSingle()
-          .then(({ data }) => setProfile(data))
-      }
-    })
-    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-      const u = session?.user || null
-      setUser(u)
-      if (u) {
-        supabase.from("profiles").select("*").eq("id", u.id).maybeSingle()
-          .then(({ data }) => setProfile(data))
-      } else {
-        setProfile(null)
-      }
-    })
-    return () => listener?.subscription.unsubscribe()
-  }, [supabase])
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setAccountOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
-    setAccountOpen(false)
-    window.location.href = "/"
-  }
-
   const wishlistCount = wishlistIds.size
 
   return (

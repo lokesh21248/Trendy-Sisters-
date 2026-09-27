@@ -61,7 +61,31 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen w-full flex flex-col overflow-x-hidden">
-        <ClerkProvider appearance={{ theme: shadcn }}>
+        <ClerkProvider
+          appearance={{
+            theme: shadcn,
+            variables: {
+              colorPrimary: "#651F35",
+              colorPrimaryForeground: "#FFFFFF",
+              colorBackground: "#FFFFFF",
+              colorForeground: "#25201D",
+              colorMutedForeground: "#736B63",
+              colorInput: "#FFFDF9",
+              colorInputForeground: "#25201D",
+              colorBorder: "#E8DCC8",
+              borderRadius: "0.75rem",
+              fontFamily: "var(--font-inter), sans-serif",
+            },
+            elements: {
+              card: "bg-white shadow-2xl border border-[#E8DCC8] rounded-2xl",
+              cardBox: "bg-white shadow-2xl border border-[#E8DCC8] rounded-2xl",
+              modalBackdrop: "bg-black/60 backdrop-blur-sm",
+              modalContent: "bg-white rounded-2xl shadow-2xl overflow-hidden",
+              formButtonPrimary:
+                "bg-[#651F35] hover:bg-[#4A1627] text-white font-medium py-2.5 rounded-lg transition-all shadow-sm",
+            },
+          }}
+        >
           <CartProvider>
             <WishlistProvider>
               <StoreLayoutShell>{children}</StoreLayoutShell>
