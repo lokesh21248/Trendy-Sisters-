@@ -83,6 +83,7 @@ export default async function AccountPage() {
                     width={80}
                     height={80}
                     className="w-full h-full object-cover"
+                    unoptimized
                   />
                 ) : (
                   displayName[0]?.toUpperCase() || "U"

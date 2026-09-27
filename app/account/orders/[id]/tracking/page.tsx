@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
+import { auth } from "@clerk/nextjs/server"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, CheckCircle2, Circle, Package, Truck, Home } from "lucide-react"
+
+export const dynamic = "force-dynamic"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -9,16 +12,16 @@ interface Props {
 
 export default async function TrackingPage({ params }: Props) {
   const { id } = await params
-  const supabase = await createClient()
+  const { userId } = await auth()
+  if (!userId) redirect("/sign-in")
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/auth/login")
+  const supabase = await createClient()
 
   const { data: order } = await supabase
     .from("orders")
     .select("*")
     .eq("id", id)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .single()
 
   const typedOrder = order as any;

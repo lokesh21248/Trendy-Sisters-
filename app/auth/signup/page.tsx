@@ -45,9 +45,16 @@ export default function SignupPage() {
       const firstName = parts[0] || "User"
       const lastName = parts.slice(1).join(" ") || undefined
 
+      let formattedPhone = form.phone.trim()
+      if (formattedPhone && !formattedPhone.startsWith("+")) {
+        // If it starts with 0, remove it. Otherwise just add +91
+        if (formattedPhone.startsWith("0")) formattedPhone = formattedPhone.substring(1)
+        formattedPhone = "+91" + formattedPhone
+      }
+
       const result = await signUp.create({
         emailAddress: form.email.trim(),
-        phoneNumber: form.phone.trim(),
+        phoneNumber: formattedPhone,
         password: form.password,
         firstName,
         lastName,
@@ -59,6 +66,7 @@ export default function SignupPage() {
       if (sendResult.error) throw sendResult.error;
       setCodeSent(true)
     } catch (err: any) {
+      console.error("Clerk Signup Error details:", err);
       const msg = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || "Failed to create account"
       setError(msg)
     } finally {
