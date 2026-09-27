@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@clerk/nextjs"
 
 interface WishlistContextType {
   wishlistIds: Set<string>
@@ -25,6 +26,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const wishlistIdRef = useRef<string | null>(null)
   const userIdRef = useRef<string | null>(null)
   const supabase = createClient()
+  const { userId, isLoaded } = useAuth()
 
   // Load from local storage initially for instant display
   useEffect(() => {
@@ -97,25 +99,16 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   }, [supabase])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        userIdRef.current = session.user.id
-        syncWishlist(session.user.id)
-      }
-    })
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-      if (session?.user) {
-        userIdRef.current = session.user.id
-        syncWishlist(session.user.id)
+    if (isLoaded) {
+      if (userId) {
+        userIdRef.current = userId
+        syncWishlist(userId)
       } else {
         userIdRef.current = null
         wishlistIdRef.current = null
       }
-    })
-
-    return () => listener?.subscription.unsubscribe()
-  }, [supabase, syncWishlist])
+    }
+  }, [userId, isLoaded, syncWishlist])
 
   const toggle = async (productId: string) => {
     // 1. Instant optimistic update in memory & local storage

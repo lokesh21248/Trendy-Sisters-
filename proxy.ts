@@ -4,7 +4,7 @@ const isProtectedRoute = createRouteMatcher(["/account(.*)"])
 
 export const proxy = clerkMiddleware(async (auth, request) => {
   if (isProtectedRoute(request)) {
-    const signInUrl = new URL("/sign-in", request.url)
+    const signInUrl = new URL("/auth/login", request.url)
     signInUrl.searchParams.set("redirect_url", request.url)
     await auth.protect({
       unauthenticatedUrl: signInUrl.toString(),

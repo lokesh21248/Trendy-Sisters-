@@ -4,6 +4,8 @@ import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useCart } from "@/contexts/CartContext"
+import { useAuth } from "@clerk/nextjs"
+import { createClient } from "@/lib/supabase/client"
 import { getSafeImageUrl } from "@/lib/image-utils"
 import { ArrowLeft, CreditCard, MapPin, Truck, ShieldCheck, CheckCircle2 } from "lucide-react"
 
@@ -13,22 +15,68 @@ function formatPrice(p: number) {
 
 export default function CheckoutPage() {
   const { items, total, itemCount, clearCart } = useCart()
+  const { userId } = useAuth()
   const [step, setStep] = useState<"address" | "payment" | "success">("address")
   const [loading, setLoading] = useState(false)
+  const [orderId, setOrderId] = useState<string>("")
 
   const subtotal = items.reduce((sum, item) => sum + (item.products?.mrp || 0) * item.quantity, 0)
   const savings = subtotal - total
   const shipping = total >= 999 ? 0 : 99
   const finalTotal = total + shipping
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
+    if (!userId) {
+      alert("Please log in to place an order.")
+      return
+    }
     setLoading(true)
-    // Simulate order placement
-    setTimeout(() => {
-      setLoading(false)
-      clearCart()
+    
+    try {
+      const supabase = createClient()
+      
+      // 1. Create Order
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          user_id: userId,
+          status: "pending",
+          subtotal,
+          discount: savings,
+          shipping,
+          total: finalTotal,
+          payment_status: "pending",
+          payment_method: "cash_on_delivery" // Hardcoded for now based on selection
+        } as any)
+        .select("id")
+        .single()
+
+      if (orderError) throw orderError
+
+      // 2. Create Order Items
+      const orderItems = items.map(item => ({
+        order_id: (order as any).id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.products?.price || 0,
+        mrp: item.products?.mrp || 0
+      }))
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems as any)
+
+      if (itemsError) throw itemsError
+
+      setOrderId((order as any).id)
+      await clearCart()
       setStep("success")
-    }, 1500)
+    } catch (error) {
+      console.error("Error placing order:", error)
+      alert("Failed to place order. Please try again.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (itemCount === 0 && step !== "success") {
@@ -51,7 +99,7 @@ export default function CheckoutPage() {
           </div>
           <h1 className="font-serif text-2xl lg:text-3xl font-bold text-charcoal mb-3">Order Confirmed!</h1>
           <p className="text-sm text-[#9B8A7A] mb-8">
-            Thank you for shopping with Trendy Sisters. Your order <span className="font-mono text-charcoal font-semibold">ORD-{Math.floor(Math.random()*1000000)}</span> has been placed successfully.
+            Thank you for shopping with Trendy Sisters. Your order <span className="font-mono text-charcoal font-semibold">{orderId ? orderId.split('-')[0].toUpperCase() : `ORD-${Math.floor(Math.random()*1000000)}`}</span> has been placed successfully.
           </p>
           <div className="space-y-3">
             <Link href="/account/orders" className="btn-primary w-full block py-3.5">

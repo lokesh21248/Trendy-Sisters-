@@ -7,7 +7,7 @@ import { useCart } from "@/contexts/CartContext"
 import { useWishlist } from "@/contexts/WishlistContext"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { SignInButton, Show, UserButton } from "@clerk/nextjs"
+import { Show, UserButton } from "@clerk/nextjs"
 
 export function MobileHeader() {
   const { itemCount } = useCart()
@@ -69,16 +69,15 @@ export function MobileHeader() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          {/* Clerk Auth controls */}
+          {/* Auth controls */}
           <Show when="signed-out">
-            <SignInButton mode="modal">
-              <button
-                className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                style={{ borderColor: "var(--burgundy)", color: "var(--burgundy)" }}
-              >
-                Sign In
-              </button>
-            </SignInButton>
+            <Link
+              href="/auth/login"
+              className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+              style={{ borderColor: "var(--burgundy)", color: "var(--burgundy)" }}
+            >
+              Sign In
+            </Link>
           </Show>
           <Show when="signed-in">
             <UserButton

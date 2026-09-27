@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@clerk/nextjs"
 import { CartItemWithProduct, ProductWithImages } from "@/types"
 
 interface CartContextType {
@@ -36,6 +37,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const cartIdRef = useRef<string | null>(null)
   const userIdRef = useRef<string | null>(null)
   const supabase = createClient()
+  const { userId, isLoaded } = useAuth()
 
   // 1. Load cached cart from localStorage on mount for 0ms initial render
   useEffect(() => {
@@ -114,8 +116,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         .order("created_at", { ascending: false })
 
       const serverItems = (data as CartItemWithProduct[]) || []
-      setItems(serverItems)
-      saveToLocalStorage(serverItems)
+
+      // MERGE local storage items that are not in the server cart
+      try {
+        const stored = localStorage.getItem(LOCAL_STORAGE_CART_KEY)
+        if (stored) {
+          const localItems: CartItemWithProduct[] = JSON.parse(stored)
+          const newItemsToSync = localItems.filter(
+            (localItem) => !serverItems.some((serverItem) => serverItem.product_id === localItem.product_id)
+          )
+
+          if (newItemsToSync.length > 0) {
+            // Add missing local items to server
+            for (const item of newItemsToSync) {
+              const { data: inserted } = await supabase
+                .from("cart_items")
+                .insert({ cart_id: cartId, product_id: item.product_id, quantity: item.quantity } as any)
+                .select("id")
+                .single()
+
+              if (inserted) {
+                serverItems.unshift({ ...item, id: (inserted as any).id, cart_id: cartId })
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error merging local cart:", e)
+      }
+
+      setItems([...serverItems])
+      saveToLocalStorage([...serverItems])
     } catch (e) {
       console.error("Error refetching cart:", e)
     }
@@ -123,25 +154,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Sync user and cart on session change
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        userIdRef.current = session.user.id
-        await refetch()
-      }
-    })
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_, session) => {
-      if (session?.user) {
-        userIdRef.current = session.user.id
-        await refetch()
+    if (isLoaded) {
+      if (userId) {
+        userIdRef.current = userId
+        refetch()
       } else {
         userIdRef.current = null
         cartIdRef.current = null
       }
-    })
-
-    return () => listener?.subscription.unsubscribe()
-  }, [supabase, refetch])
+    }
+  }, [userId, isLoaded, refetch])
 
   // Optimistic Add Item
   const addItem = async (productId: string, quantity = 1, productDetails?: ProductWithImages) => {
@@ -149,25 +171,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     if (existingIndex > -1) {
       // Item already in cart: immediately increment quantity
-      const updated = [...items]
-      updated[existingIndex] = {
-        ...updated[existingIndex],
-        quantity: updated[existingIndex].quantity + quantity,
-      }
-      setItems(updated)
-      saveToLocalStorage(updated)
-
-      // Sync to database if logged in
-      const userId = userIdRef.current
-      if (userId) {
-        const itemToUpdate = updated[existingIndex]
-        if (itemToUpdate.id && !itemToUpdate.id.startsWith("temp-")) {
-          ;(supabase.from("cart_items") as any)
-            .update({ quantity: itemToUpdate.quantity })
-            .eq("id", itemToUpdate.id)
-            .then(() => {})
+      setItems((prev) => {
+        const updated = [...prev]
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + quantity,
         }
-      }
+        saveToLocalStorage(updated)
+        
+        // Sync to database if logged in
+        const userId = userIdRef.current
+        if (userId) {
+          const itemToUpdate = updated[existingIndex]
+          if (itemToUpdate.id && !itemToUpdate.id.startsWith("temp-")) {
+            ;(supabase.from("cart_items") as any)
+              .update({ quantity: itemToUpdate.quantity })
+              .eq("id", itemToUpdate.id)
+              .then(() => {})
+          }
+        }
+        
+        return updated
+      })
+
       return
     }
 
@@ -197,9 +223,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       products: productData || ({ id: productId, name: "Saree", price: 0, mrp: 0 } as any),
     }
 
-    const newItems = [optimisticItem, ...items]
-    setItems(newItems)
-    saveToLocalStorage(newItems)
+    setItems((prev) => {
+      const newItems = [optimisticItem, ...prev]
+      saveToLocalStorage(newItems)
+      return newItems
+    })
 
     // Sync to database if logged in
     const userId = userIdRef.current

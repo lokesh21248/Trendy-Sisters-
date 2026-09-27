@@ -1,12 +1,12 @@
-import { SignIn } from "@clerk/nextjs"
+import { redirect } from "next/navigation"
 
-export default function SignInPage() {
-  return (
-    <div
-      className="min-h-[80vh] flex items-center justify-center py-12 px-4"
-      style={{ backgroundColor: "var(--ivory)" }}
-    >
-      <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" />
-    </div>
-  )
+export default async function SignInPage(props: {
+  searchParams: Promise<{ redirect_url?: string }>
+}) {
+  const params = await props.searchParams
+  const redirectUrl = params?.redirect_url
+  if (redirectUrl) {
+    redirect(`/auth/login?redirect_url=${encodeURIComponent(redirectUrl)}`)
+  }
+  redirect("/auth/login")
 }

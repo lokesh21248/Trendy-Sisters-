@@ -7,7 +7,7 @@ import { MapPin, Heart, ShoppingBag, Package } from "lucide-react"
 import { useCart } from "@/contexts/CartContext"
 import { useWishlist } from "@/contexts/WishlistContext"
 import { SearchBar } from "./SearchBar"
-import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs"
+import { Show, UserButton } from "@clerk/nextjs"
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -142,25 +142,23 @@ export function Header() {
               )}
             </Link>
 
-            {/* Clerk Authentication Controls */}
+            {/* Authentication Controls */}
             <div className="flex items-center gap-2">
               <Show when="signed-out">
-                <SignInButton mode="modal">
-                  <button
-                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all hover:bg-black/5"
-                    style={{ borderColor: "var(--burgundy)", color: "var(--burgundy)" }}
-                  >
-                    Sign In
-                  </button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <button
-                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90"
-                    style={{ backgroundColor: "var(--burgundy)" }}
-                  >
-                    Sign Up
-                  </button>
-                </SignUpButton>
+                <Link
+                  href="/auth/login"
+                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all hover:bg-black/5"
+                  style={{ borderColor: "var(--burgundy)", color: "var(--burgundy)" }}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/auth/signup"
+                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90"
+                  style={{ backgroundColor: "var(--burgundy)" }}
+                >
+                  Sign Up
+                </Link>
               </Show>
 
               <Show when="signed-in">
