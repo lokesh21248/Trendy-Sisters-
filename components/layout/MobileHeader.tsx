@@ -7,7 +7,8 @@ import { useCart } from "@/contexts/CartContext"
 import { useWishlist } from "@/contexts/WishlistContext"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Show, UserButton } from "@clerk/nextjs"
+import { Show } from "@clerk/nextjs"
+import { CustomUserMenu } from "./CustomUserMenu"
 
 export function MobileHeader() {
   const { itemCount } = useCart()
@@ -80,13 +81,7 @@ export function MobileHeader() {
             </Link>
           </Show>
           <Show when="signed-in">
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: "w-7 h-7",
-                },
-              }}
-            />
+            <CustomUserMenu size="sm" />
           </Show>
 
           <Link

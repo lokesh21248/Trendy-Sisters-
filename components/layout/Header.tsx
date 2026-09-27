@@ -7,7 +7,8 @@ import { MapPin, Heart, ShoppingBag, Package } from "lucide-react"
 import { useCart } from "@/contexts/CartContext"
 import { useWishlist } from "@/contexts/WishlistContext"
 import { SearchBar } from "./SearchBar"
-import { Show, UserButton } from "@clerk/nextjs"
+import { Show } from "@clerk/nextjs"
+import { CustomUserMenu } from "./CustomUserMenu"
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -163,26 +164,7 @@ export function Header() {
 
               <Show when="signed-in">
                 <div className="flex items-center gap-2 pl-1">
-                  <UserButton
-                    appearance={{
-                      elements: {
-                        avatarBox: "w-9 h-9 border border-[#B88A3B]/40 shadow-sm",
-                      },
-                    }}
-                  >
-                    <UserButton.MenuItems>
-                      <UserButton.Link
-                        label="My Orders"
-                        labelIcon={<Package size={15} />}
-                        href="/account/orders"
-                      />
-                      <UserButton.Link
-                        label="Wishlist"
-                        labelIcon={<Heart size={15} />}
-                        href="/wishlist"
-                      />
-                    </UserButton.MenuItems>
-                  </UserButton>
+                  <CustomUserMenu />
                 </div>
               </Show>
             </div>

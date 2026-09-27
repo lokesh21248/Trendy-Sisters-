@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { Package, MapPin, Heart, Tag, CreditCard, Bell, ChevronRight, User } from "lucide-react"
-import { SignOutButton, UserButton } from "@clerk/nextjs"
+import { SignOutButton } from "@clerk/nextjs"
 
 export const dynamic = "force-dynamic"
 
@@ -21,6 +21,12 @@ export default async function AccountPage() {
   const avatarUrl = user?.imageUrl
 
   const accountCards = [
+    {
+      href: "/account/profile",
+      icon: User,
+      title: "Profile Information",
+      desc: "Personal details, phone & email",
+    },
     {
       href: "/account/orders",
       icon: Package,
@@ -75,7 +81,11 @@ export default async function AccountPage() {
 
           <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-5">
-              <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold border-4 border-white/20 text-white overflow-hidden bg-[#B88A3B]/40">
+              <Link
+                href="/account/profile"
+                className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold border-4 border-white/20 text-white overflow-hidden bg-[#B88A3B]/40 hover:scale-105 transition-transform"
+                title="Edit profile photo and details"
+              >
                 {avatarUrl ? (
                   <Image
                     src={avatarUrl}
@@ -88,7 +98,7 @@ export default async function AccountPage() {
                 ) : (
                   displayName[0]?.toUpperCase() || "U"
                 )}
-              </div>
+              </Link>
               <div className="text-white">
                 <h1 className="font-serif text-2xl lg:text-3xl font-bold mb-1">
                   Hello, {displayName}
@@ -97,10 +107,13 @@ export default async function AccountPage() {
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2 px-3 flex items-center gap-3">
-              <UserButton />
-              <span className="text-xs font-semibold text-white/90">Manage Profile</span>
-            </div>
+            <Link
+              href="/account/profile"
+              className="bg-white/15 hover:bg-white/25 backdrop-blur-md rounded-2xl py-2.5 px-4 flex items-center gap-2.5 text-white transition-all border border-white/20 shadow-sm group"
+            >
+              <User size={16} className="text-white/90 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-semibold text-white">Edit Profile</span>
+            </Link>
           </div>
         </div>
 
