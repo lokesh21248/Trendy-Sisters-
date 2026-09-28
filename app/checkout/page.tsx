@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useCart } from "@/contexts/CartContext"
@@ -19,11 +19,31 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<"address" | "payment" | "success">("address")
   const [loading, setLoading] = useState(false)
   const [orderId, setOrderId] = useState<string>("")
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string
+    title: string
+    discount: number
+    description: string
+    freeShipping?: boolean
+  } | null>(null)
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("trendy_applied_coupon")
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (parsed?.code) {
+          setAppliedCoupon(parsed)
+        }
+      }
+    } catch {}
+  }, [])
 
   const subtotal = items.reduce((sum, item) => sum + (item.products?.mrp || 0) * item.quantity, 0)
   const savings = subtotal - total
-  const shipping = total >= 999 ? 0 : 99
-  const finalTotal = total + shipping
+  const couponDiscount = appliedCoupon?.freeShipping ? 0 : (appliedCoupon?.discount || 0)
+  const shipping = appliedCoupon?.freeShipping ? 0 : (total >= 999 ? 0 : 99)
+  const finalTotal = Math.max(0, total - couponDiscount + shipping)
 
   const handlePlaceOrder = async () => {
     if (!userId) {
@@ -263,8 +283,16 @@ export default function CheckoutPage() {
                 </div>
                 {savings > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#9B8A7A]">Discount</span>
+                    <span className="text-[#9B8A7A]">Product Discount</span>
                     <span className="text-gold font-bold">-{formatPrice(savings)}</span>
+                  </div>
+                )}
+                {appliedCoupon && (
+                  <div className="flex justify-between text-sm animate-in fade-in">
+                    <span className="text-green-700 font-medium">Coupon ({appliedCoupon.code})</span>
+                    <span className="text-green-700 font-bold">
+                      {appliedCoupon.freeShipping ? "FREE SHIPPING" : `-${formatPrice(couponDiscount)}`}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">

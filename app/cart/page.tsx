@@ -1,9 +1,10 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { useCart } from "@/contexts/CartContext"
 import Image from "next/image"
 import Link from "next/link"
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Tag } from "lucide-react"
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Tag, CheckCircle2, AlertCircle, Sparkles, X } from "lucide-react"
 import { getSafeImageUrl } from "@/lib/image-utils"
 import type { CartItemWithProduct } from "@/types"
 
@@ -11,12 +12,185 @@ function formatPrice(p: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(p)
 }
 
+interface AppliedCoupon {
+  code: string
+  title: string
+  discount: number
+  description: string
+  freeShipping?: boolean
+}
+
+const AVAILABLE_COUPONS = [
+  {
+    code: "TRENDY10",
+    title: "First Order Special",
+    description: "Get 10% instant discount on your order",
+    discountPercent: 10,
+    minOrder: 0,
+    badge: "10% OFF",
+  },
+  {
+    code: "WELCOME10",
+    title: "New Shopper Delight",
+    description: "Flat 10% off across all collections",
+    discountPercent: 10,
+    minOrder: 999,
+    badge: "10% OFF",
+  },
+  {
+    code: "FESTIVE25",
+    title: "Festive Grandeur",
+    description: "25% OFF on celebration sarees (max ₹1,000)",
+    discountPercent: 25,
+    maxDiscount: 1000,
+    minOrder: 2999,
+    badge: "25% OFF",
+  },
+  {
+    code: "BRIDAL15",
+    title: "Bridal & Heritage Edit",
+    description: "Flat 15% OFF on pure silk weaves & bridal wear",
+    discountPercent: 15,
+    minOrder: 4999,
+    badge: "15% OFF",
+  },
+  {
+    code: "FREESHIP",
+    title: "Zero Shipping Charges",
+    description: "Free express shipping to any pincode",
+    freeShipping: true,
+    minOrder: 799,
+    badge: "FREE SHIP",
+  },
+  {
+    code: "TRENDY500",
+    title: "Flat ₹500 Off",
+    description: "Instant ₹500 deduction on cart total",
+    flatDiscount: 500,
+    minOrder: 3499,
+    badge: "₹500 OFF",
+  },
+]
+
 export default function CartPage() {
   const { items, itemCount, total, updateQuantity, removeItem, loading } = useCart()
 
+  const [couponInput, setCouponInput] = useState("")
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null)
+  const [couponMessage, setCouponMessage] = useState<{ text: string; type: "error" | "success" } | null>(null)
+  const [showCouponList, setShowCouponList] = useState(false)
+  const [isApplying, setIsApplying] = useState(false)
+
+  // Restore applied coupon from session
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("trendy_applied_coupon")
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (parsed?.code) {
+          setAppliedCoupon(parsed)
+        }
+      }
+    } catch {}
+  }, [])
+
   const subtotal = items.reduce((sum, item) => sum + (item.products?.mrp || 0) * item.quantity, 0)
   const savings = subtotal - total
-  const shipping = total >= 999 ? 0 : 99
+  const baseShipping = total >= 999 ? 0 : 99
+
+  // Calculate dynamic coupon discount based on current cart total
+  let couponDiscount = 0
+  let isFreeShipping = false
+
+  if (appliedCoupon) {
+    const config = AVAILABLE_COUPONS.find((c) => c.code === appliedCoupon.code)
+    if (config) {
+      if (config.discountPercent) {
+        let disc = Math.round((total * config.discountPercent) / 100)
+        if (config.maxDiscount) disc = Math.min(disc, config.maxDiscount)
+        couponDiscount = disc
+      } else if (config.flatDiscount) {
+        couponDiscount = Math.min(total, config.flatDiscount)
+      } else if (config.freeShipping) {
+        isFreeShipping = true
+        couponDiscount = baseShipping
+      }
+    }
+  }
+
+  const shipping = isFreeShipping ? 0 : baseShipping
+  const grandTotal = Math.max(0, total - (isFreeShipping ? 0 : couponDiscount) + shipping)
+
+  const handleApplyCoupon = (codeToApply?: string) => {
+    const cleanCode = (codeToApply || couponInput).trim().toUpperCase()
+    if (!cleanCode) {
+      setCouponMessage({ text: "Please enter a coupon code.", type: "error" })
+      return
+    }
+
+    setIsApplying(true)
+    setTimeout(() => {
+      setIsApplying(false)
+      const found = AVAILABLE_COUPONS.find((c) => c.code === cleanCode)
+
+      if (!found) {
+        setCouponMessage({
+          text: `Coupon "${cleanCode}" is invalid or expired. Try TRENDY10 for 10% off.`,
+          type: "error",
+        })
+        return
+      }
+
+      if (total < found.minOrder) {
+        setCouponMessage({
+          text: `Coupon "${cleanCode}" requires a minimum order of ${formatPrice(found.minOrder)}. Add ${formatPrice(found.minOrder - total)} more to apply.`,
+          type: "error",
+        })
+        return
+      }
+
+      let calculatedDiscount = 0
+      let freeShip = false
+
+      if (found.discountPercent) {
+        calculatedDiscount = Math.round((total * found.discountPercent) / 100)
+        if (found.maxDiscount) calculatedDiscount = Math.min(calculatedDiscount, found.maxDiscount)
+      } else if (found.flatDiscount) {
+        calculatedDiscount = Math.min(total, found.flatDiscount)
+      } else if (found.freeShipping) {
+        freeShip = true
+        calculatedDiscount = baseShipping
+      }
+
+      const appliedObj: AppliedCoupon = {
+        code: cleanCode,
+        title: found.title,
+        discount: calculatedDiscount,
+        description: found.description,
+        freeShipping: freeShip,
+      }
+
+      setAppliedCoupon(appliedObj)
+      setCouponInput("")
+      setCouponMessage({
+        text: `Coupon "${cleanCode}" applied! You saved ${formatPrice(calculatedDiscount)}.`,
+        type: "success",
+      })
+
+      try {
+        sessionStorage.setItem("trendy_applied_coupon", JSON.stringify(appliedObj))
+      } catch {}
+    }, 250)
+  }
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponMessage(null)
+    setCouponInput("")
+    try {
+      sessionStorage.removeItem("trendy_applied_coupon")
+    } catch {}
+  }
 
   if (itemCount === 0) {
     return (
@@ -58,7 +232,7 @@ export default function CartPage() {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 w-full min-w-0">
-          {/* Cart items */}
+          {/* Cart items column */}
           <div className="lg:col-span-2 space-y-4 w-full min-w-0">
             {items.map((item) => {
               const product = item.products
@@ -160,30 +334,155 @@ export default function CartPage() {
               )
             })}
 
-            {/* Coupon */}
+            {/* Enhanced Coupon Section */}
             <div
-              className="flex flex-col min-[380px]:flex-row gap-2 p-3.5 sm:p-4 rounded-2xl w-full min-w-0 box-border"
-              style={{ backgroundColor: "white", border: "1px solid var(--border)" }}
+              className="p-4 sm:p-5 rounded-2xl w-full min-w-0 box-border bg-white"
+              style={{ border: "1px solid var(--border)" }}
             >
-              <div className="flex-1 relative min-w-0">
-                <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--gold)" }} />
-                <input
-                  type="text"
-                  placeholder="Enter coupon code"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-lg text-xs sm:text-sm outline-none box-border"
-                  style={{ backgroundColor: "var(--ivory-dark)", border: "1px solid var(--border)" }}
-                />
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Tag size={17} style={{ color: "var(--gold)" }} />
+                  <span className="font-semibold text-sm" style={{ color: "var(--charcoal)" }}>
+                    Apply Coupon Code
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCouponList(!showCouponList)}
+                  className="text-xs font-semibold hover:underline flex items-center gap-1"
+                  style={{ color: "var(--burgundy)" }}
+                >
+                  <Sparkles size={12} />
+                  <span>{showCouponList ? "Hide Offers" : "View Offers"}</span>
+                </button>
               </div>
-              <button
-                className="w-full min-[380px]:w-auto px-5 py-2.5 rounded-lg font-semibold text-xs sm:text-sm text-white shrink-0 transition-opacity hover:opacity-90 active:scale-98"
-                style={{ backgroundColor: "var(--burgundy)" }}
-              >
-                Apply
-              </button>
+
+              {appliedCoupon ? (
+                <div
+                  className="flex items-center justify-between p-3.5 rounded-xl border"
+                  style={{ borderColor: "rgba(21,128,61,0.3)", backgroundColor: "rgba(21,128,61,0.06)" }}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <CheckCircle2 size={18} className="text-green-600 shrink-0" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-green-800 tracking-wide font-mono">
+                          {appliedCoupon.code}
+                        </span>
+                        <span className="text-[11px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                          SAVED {formatPrice(appliedCoupon.discount)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-green-700 mt-0.5 truncate">{appliedCoupon.description}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    className="text-xs font-semibold text-red-600 hover:text-red-700 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors shrink-0 ml-2"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    handleApplyCoupon()
+                  }}
+                  className="flex flex-col sm:flex-row gap-2.5 w-full min-w-0"
+                >
+                  <div className="relative flex-1 min-w-0">
+                    <Tag
+                      size={16}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                      style={{ color: "var(--gold)" }}
+                    />
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => {
+                        setCouponInput(e.target.value.toUpperCase())
+                        if (couponMessage) setCouponMessage(null)
+                      }}
+                      placeholder="Enter coupon code (e.g. TRENDY10)"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium uppercase placeholder:normal-case placeholder:font-normal outline-none box-border transition-all focus:ring-2 focus:ring-[#651F35]/20"
+                      style={{
+                        backgroundColor: "var(--ivory-dark)",
+                        border: "1px solid var(--border)",
+                        color: "var(--charcoal)",
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!couponInput.trim() || isApplying}
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-semibold text-xs sm:text-sm text-white shrink-0 transition-all hover:opacity-95 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    style={{ backgroundColor: "var(--burgundy)" }}
+                  >
+                    {isApplying ? "Checking..." : "Apply"}
+                  </button>
+                </form>
+              )}
+
+              {couponMessage && (
+                <div
+                  className={`mt-2.5 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 ${
+                    couponMessage.type === "success"
+                      ? "bg-green-50 text-green-700 border border-green-200"
+                      : "bg-red-50 text-red-600 border border-red-200"
+                  }`}
+                >
+                  {couponMessage.type === "success" ? (
+                    <CheckCircle2 size={14} className="shrink-0" />
+                  ) : (
+                    <AlertCircle size={14} className="shrink-0" />
+                  )}
+                  <span>{couponMessage.text}</span>
+                </div>
+              )}
+
+              {/* Quick Offers List */}
+              {showCouponList && !appliedCoupon && (
+                <div className="mt-3.5 pt-3.5 border-t border-[var(--border)] space-y-2">
+                  <p className="text-xs font-semibold text-[#9B8A7A] uppercase tracking-wider mb-2">
+                    Available Coupons
+                  </p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {AVAILABLE_COUPONS.map((coupon) => (
+                      <div
+                        key={coupon.code}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-[var(--ivory)] border border-[var(--border)] gap-2 hover:border-[var(--burgundy)] transition-colors"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-[var(--ivory-dark)] border border-[var(--gold)]/40 text-[var(--burgundy)]">
+                              {coupon.code}
+                            </span>
+                            <span className="text-xs font-semibold text-[var(--charcoal)] truncate">
+                              {coupon.title}
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[var(--burgundy)] text-white">
+                              {coupon.badge}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#9B8A7A] mt-0.5">{coupon.description}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyCoupon(coupon.code)}
+                          className="text-xs font-semibold text-[var(--burgundy)] px-3 py-1 rounded-lg border border-[var(--burgundy)] hover:bg-[var(--burgundy)] hover:text-white transition-all shrink-0"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Order summary */}
+          {/* Order summary column */}
           <div className="lg:col-span-1 w-full min-w-0">
             <div
               className="sticky top-24 sm:top-28 p-4 sm:p-6 rounded-2xl w-full min-w-0 box-border"
@@ -205,8 +504,11 @@ export default function CartPage() {
                     {formatPrice(subtotal)}
                   </span>
                 </div>
+
                 <div className="flex items-baseline justify-between gap-3 text-xs sm:text-sm w-full min-w-0">
-                  <span className="shrink min-w-0 break-words" style={{ color: "#9B8A7A" }}>Discount</span>
+                  <span className="shrink min-w-0 break-words" style={{ color: "#9B8A7A" }}>
+                    Product Discount
+                  </span>
                   <span
                     className="text-right font-semibold shrink-0 max-w-[60%] break-words"
                     style={{ color: "var(--gold)", overflowWrap: "anywhere" }}
@@ -214,6 +516,22 @@ export default function CartPage() {
                     -{formatPrice(savings)}
                   </span>
                 </div>
+
+                {appliedCoupon && couponDiscount > 0 && !isFreeShipping && (
+                  <div className="flex items-baseline justify-between gap-3 text-xs sm:text-sm w-full min-w-0 animate-in fade-in">
+                    <span className="shrink min-w-0 break-words flex items-center gap-1.5 text-green-700 font-medium">
+                      <Tag size={13} className="shrink-0" />
+                      Coupon ({appliedCoupon.code})
+                    </span>
+                    <span
+                      className="text-right font-semibold shrink-0 max-w-[60%] text-green-700 break-words"
+                      style={{ overflowWrap: "anywhere" }}
+                    >
+                      -{formatPrice(couponDiscount)}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-baseline justify-between gap-3 text-xs sm:text-sm w-full min-w-0">
                   <span className="shrink min-w-0 break-words" style={{ color: "#9B8A7A" }}>Shipping</span>
                   <span
@@ -223,7 +541,8 @@ export default function CartPage() {
                     {shipping === 0 ? "FREE" : formatPrice(shipping)}
                   </span>
                 </div>
-                {total < 999 && (
+
+                {total < 999 && !isFreeShipping && (
                   <p
                     className="text-xs px-3 py-2 rounded-lg break-words leading-relaxed"
                     style={{ backgroundColor: "rgba(184,138,59,0.08)", color: "var(--gold-dark)" }}
@@ -242,7 +561,7 @@ export default function CartPage() {
                   className="text-base sm:text-lg text-right break-words max-w-[70%]"
                   style={{ color: "var(--burgundy)", overflowWrap: "anywhere" }}
                 >
-                  {formatPrice(total + shipping)}
+                  {formatPrice(grandTotal)}
                 </span>
               </div>
 
@@ -268,3 +587,4 @@ export default function CartPage() {
     </div>
   )
 }
+
