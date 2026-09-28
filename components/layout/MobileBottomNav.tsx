@@ -19,7 +19,7 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 flex items-stretch"
+      className="fixed bottom-0 left-0 right-0 z-50 flex items-stretch w-full max-w-full box-border"
       style={{
         backgroundColor: "white",
         borderTop: "1px solid var(--border)",
@@ -38,7 +38,7 @@ export function MobileBottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className="relative flex flex-col items-center justify-center flex-1 py-2 gap-0.5 transition-all"
+            className="relative flex flex-col items-center justify-center flex-1 py-1.5 px-0.5 gap-0.5 transition-all min-w-0 text-center"
             style={{
               color: isActive ? "var(--burgundy)" : "#9B8A7A",
               minHeight: 56,
@@ -48,20 +48,20 @@ export function MobileBottomNav() {
             {/* Active top bar */}
             {isActive && (
               <span
-                className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-10 rounded-full"
+                className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full"
                 style={{ backgroundColor: "var(--burgundy)" }}
               />
             )}
 
             {/* Icon with active background pill */}
             <span
-              className="relative flex items-center justify-center w-8 h-8 rounded-full transition-all"
+              className="relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full transition-all shrink-0"
               style={{
                 backgroundColor: isActive ? "rgba(101,31,53,0.08)" : "transparent",
               }}
             >
               <item.icon
-                size={20}
+                size={19}
                 strokeWidth={isActive ? 2.2 : 1.8}
               />
               {item.label === "Cart" && itemCount > 0 && (
@@ -75,7 +75,7 @@ export function MobileBottomNav() {
             </span>
 
             <span
-              className="text-[10px] font-medium leading-none"
+              className="text-[10px] font-medium leading-none text-center truncate max-w-full px-0.5"
               style={{
                 fontFamily: "Inter, sans-serif",
                 color: isActive ? "var(--burgundy)" : "#9B8A7A",

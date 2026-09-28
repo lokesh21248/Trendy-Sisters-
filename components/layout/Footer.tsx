@@ -110,8 +110,8 @@ export function Footer() {
         style={{ background: "linear-gradient(135deg, var(--burgundy), var(--burgundy-light))" }}
       >
         <div className="w-full max-w-7xl mx-auto">
-          <div className="mb-4 text-center sm:text-left sm:flex sm:items-center sm:justify-between sm:mb-0">
-            <div className="mb-4 sm:mb-0">
+          <div className="mb-4 text-center sm:text-left sm:flex sm:items-center sm:justify-between sm:mb-0 gap-4 flex-wrap lg:flex-nowrap min-w-0">
+            <div className="mb-4 sm:mb-0 min-w-0">
               <h3 className="font-serif text-xl font-bold text-white mb-1">
                 Get 10% Off Your First Order
               </h3>
@@ -119,11 +119,11 @@ export function Footer() {
                 Join our saree-loving community for new collections &amp; exclusive offers.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto sm:flex-shrink-0">
+            <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto shrink-0 max-w-full">
               <input
                 type="email"
                 placeholder="Your email address"
-                className="w-full sm:w-64 px-4 py-2.5 rounded-xl outline-none text-sm placeholder:text-white/60"
+                className="w-full sm:w-64 px-4 py-2.5 rounded-xl outline-none text-sm placeholder:text-white/60 box-border"
                 style={{
                   backgroundColor: "rgba(255,249,239,0.15)",
                   border: "1px solid rgba(255,249,239,0.3)",

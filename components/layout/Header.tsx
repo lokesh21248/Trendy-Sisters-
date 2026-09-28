@@ -79,7 +79,7 @@ export function Header() {
           </Link>
 
           {/* Navigation pills */}
-          <nav className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
+          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 shrink min-w-0">
             {navLinks.map((link) => {
               const isActive =
                 link.href === "/"
@@ -89,7 +89,9 @@ export function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`nav-pill ${isActive ? "nav-pill-active" : "nav-pill-inactive"}`}
+                  className={`rounded-full transition-all text-xs xl:text-sm font-medium px-2.5 py-1.5 xl:px-4 xl:py-2 whitespace-nowrap ${
+                    isActive ? "bg-burgundy text-white" : "text-charcoal hover:bg-ivory-dark hover:text-burgundy"
+                  }`}
                 >
                   {link.label}
                 </Link>

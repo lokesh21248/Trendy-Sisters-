@@ -76,10 +76,10 @@ export default function ProductPage() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-10">
-        <div className="grid lg:grid-cols-2 gap-10">
-          <div className="skeleton rounded-2xl" style={{ aspectRatio: "4/5" }} />
-          <div className="space-y-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full min-w-0 box-border">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 w-full min-w-0">
+          <div className="skeleton rounded-2xl w-full aspect-[4/5]" />
+          <div className="space-y-4 w-full min-w-0">
             <div className="skeleton h-8 w-3/4 rounded" />
             <div className="skeleton h-5 w-1/2 rounded" />
             <div className="skeleton h-10 w-1/3 rounded" />
@@ -125,19 +125,19 @@ export default function ProductPage() {
   ]
 
   return (
-    <div style={{ backgroundColor: "var(--ivory)" }}>
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8">
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16">
+    <div style={{ backgroundColor: "var(--ivory)" }} className="w-full min-w-0 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 w-full min-w-0 box-border">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 w-full min-w-0">
           {/* Image gallery */}
-          <div>
+          <div className="w-full min-w-0 max-w-full">
             {/* Main image */}
-            <div className="relative overflow-hidden rounded-2xl mb-3" style={{ aspectRatio: "4/5" }}>
+            <div className="relative w-full max-w-full overflow-hidden rounded-2xl mb-3 aspect-[4/5] sm:aspect-[4/5] max-h-[65vh] sm:max-h-none bg-[var(--ivory-dark)] shadow-sm box-border">
               {images[selectedImage]?.image_url ? (
                 <Image
                   src={getSafeImageUrl(images[selectedImage].image_url)}
                   alt={product.name}
                   fill
-                  className="object-cover"
+                  className="object-cover object-top"
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   priority
                 />
@@ -147,81 +147,110 @@ export default function ProductPage() {
                 </div>
               )}
               {discount > 0 && (
-                <div className="absolute top-4 left-4">
-                  <span className="discount-badge text-sm px-3 py-1">-{Math.round(discount)}%</span>
+                <div className="absolute top-3.5 left-3.5 z-10">
+                  <span className="discount-badge text-xs sm:text-sm px-2.5 sm:px-3 py-1 font-bold shadow-sm">
+                    -{Math.round(discount)}%
+                  </span>
                 </div>
               )}
+              {/* Floating Wishlist Heart */}
+              <button
+                onClick={() => toggle(product.id)}
+                className="absolute top-3.5 right-3.5 z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 backdrop-blur-sm border border-[var(--border)] shadow-md flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+              >
+                <Heart
+                  size={19}
+                  fill={wishlisted ? "var(--burgundy)" : "none"}
+                  stroke="var(--burgundy)"
+                />
+              </button>
             </div>
 
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto category-scroll">
-                {images.map((img, i) => (
-                  <button
-                    key={img.id}
-                    onClick={() => setSelectedImage(i)}
-                    className="relative flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all"
-                    style={{
-                      width: 72, height: 90,
-                      borderColor: i === selectedImage ? "var(--burgundy)" : "var(--border)",
-                    }}
-                  >
-                    <Image src={getSafeImageUrl(img.image_url)} alt="" fill className="object-cover" sizes="72px" />
-                  </button>
-                ))}
+              <div className="w-full min-w-0 max-w-full overflow-hidden">
+                <div className="flex gap-2.5 overflow-x-auto category-scroll w-full min-w-0 py-1 px-0.5 box-border">
+                  {images.map((img, i) => (
+                    <button
+                      key={img.id}
+                      onClick={() => setSelectedImage(i)}
+                      className="relative shrink-0 overflow-hidden rounded-xl border-2 transition-all w-16 h-20 sm:w-[72px] sm:h-[90px] focus:outline-none"
+                      style={{
+                        borderColor: i === selectedImage ? "var(--burgundy)" : "var(--border)",
+                        boxShadow: i === selectedImage ? "0 0 0 1px var(--burgundy)" : "none",
+                      }}
+                      aria-label={`View image ${i + 1}`}
+                    >
+                      <Image
+                        src={getSafeImageUrl(img.image_url)}
+                        alt=""
+                        fill
+                        className="object-cover object-top"
+                        sizes="(max-width: 640px) 64px, 72px"
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
           {/* Product info */}
-          <div>
+          <div className="w-full min-w-0 max-w-full">
             {/* Category */}
             {(product as any).categories && (
-              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--gold)" }}>
+              <span className="inline-block text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--gold)" }}>
                 {(product as any).categories.name}
               </span>
             )}
 
-            <h1 className="font-serif text-2xl lg:text-3xl font-bold mt-2 mb-3" style={{ color: "var(--charcoal)" }}>
+            {/* Title */}
+            <h1
+              className="font-serif text-2xl sm:text-3xl font-bold leading-tight break-words text-[var(--charcoal)] mt-1 mb-2 sm:mb-3 w-full min-w-0"
+              style={{ overflowWrap: "anywhere" }}
+            >
               {product.name}
             </h1>
 
             {/* Rating */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="flex">
+            <div className="flex flex-wrap items-center gap-2 mb-3 sm:mb-4 w-full min-w-0">
+              <div className="flex items-center shrink-0">
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} size={14} fill={s <= 4 ? "var(--gold)" : "none"} stroke={s <= 4 ? "var(--gold)" : "#D5C4A1"} />
+                  <Star key={s} size={15} fill={s <= 4 ? "var(--gold)" : "none"} stroke={s <= 4 ? "var(--gold)" : "#D5C4A1"} />
                 ))}
               </div>
-              <span className="text-sm" style={{ color: "#9B8A7A" }}>4.2 (48 reviews)</span>
+              <span className="text-xs sm:text-sm font-medium" style={{ color: "#9B8A7A" }}>
+                4.2 (48 reviews)
+              </span>
             </div>
 
             {/* Price */}
-            <div className="mb-5">
-              <div className="flex items-baseline gap-3">
-                <span className="font-serif text-3xl font-bold" style={{ color: "var(--burgundy)" }}>
+            <div className="mb-4 sm:mb-5 w-full min-w-0">
+              <div className="flex flex-wrap items-baseline gap-2.5 sm:gap-3 w-full min-w-0">
+                <span className="font-serif text-2xl sm:text-3xl font-bold leading-none" style={{ color: "var(--burgundy)" }}>
                   {formatPrice(product.price)}
                 </span>
-                <span className="text-lg line-through" style={{ color: "#9B8A7A" }}>
+                <span className="text-base sm:text-lg line-through leading-none" style={{ color: "#9B8A7A" }}>
                   {formatPrice(product.mrp)}
                 </span>
                 {discount > 0 && (
                   <span
-                    className="px-2 py-0.5 rounded-lg text-sm font-bold"
+                    className="px-2 py-0.5 rounded-lg text-xs sm:text-sm font-bold shrink-0"
                     style={{ backgroundColor: "rgba(101,31,53,0.1)", color: "var(--burgundy)" }}
                   >
                     {Math.round(discount)}% off
                   </span>
                 )}
               </div>
-              <p className="text-xs mt-1" style={{ color: "#9B8A7A" }}>
+              <p className="text-xs mt-1.5 leading-normal" style={{ color: "#9B8A7A" }}>
                 Inclusive of all taxes. Free shipping above ₹999.
               </p>
             </div>
 
             {/* Quick details */}
             <div
-              className="grid grid-cols-2 gap-3 p-4 rounded-xl mb-5"
+              className="w-full min-w-0 grid grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-4 sm:gap-y-5 p-4 sm:p-5 rounded-xl mb-5 box-border"
               style={{ backgroundColor: "var(--ivory-dark)", border: "1px solid var(--border)" }}
             >
               {[
@@ -230,44 +259,53 @@ export default function ProductPage() {
                 { label: "Occasion", value: product.occasion || "N/A" },
                 { label: "Stock", value: product.stock > 0 ? `${product.stock} available` : "Out of stock" },
               ].map((d) => (
-                <div key={d.label}>
-                  <span className="text-xs" style={{ color: "#9B8A7A" }}>{d.label}</span>
-                  <p className="text-sm font-semibold" style={{ color: "var(--charcoal)" }}>{d.value}</p>
+                <div key={d.label} className="min-w-0">
+                  <span className="block text-xs mb-0.5 font-medium" style={{ color: "#9B8A7A" }}>
+                    {d.label}
+                  </span>
+                  <p
+                    className="text-sm font-semibold break-words leading-snug"
+                    style={{ color: "var(--charcoal)", overflowWrap: "anywhere" }}
+                  >
+                    {d.value}
+                  </p>
                 </div>
               ))}
             </div>
 
             {/* Quantity */}
-            <div className="flex items-center gap-3 mb-5">
-              <span className="text-sm font-medium" style={{ color: "var(--charcoal)" }}>Quantity:</span>
+            <div className="flex items-center gap-3 sm:gap-4 mb-5 w-full min-w-0">
+              <span className="text-sm font-medium shrink-0" style={{ color: "var(--charcoal)" }}>Quantity:</span>
               <div
-                className="flex items-center rounded-xl overflow-hidden"
-                style={{ border: "1px solid var(--border)" }}
+                className="flex items-center rounded-xl overflow-hidden shrink-0"
+                style={{ border: "1px solid var(--border)", backgroundColor: "white" }}
               >
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="px-3 py-2 hover:bg-ivory-dark transition-colors"
+                  className="px-3 py-2 hover:bg-[var(--ivory-dark)] transition-colors active:scale-95"
+                  aria-label="Decrease quantity"
                 >
                   <Minus size={14} />
                 </button>
-                <span className="px-4 py-2 text-sm font-semibold min-w-[40px] text-center">
+                <span className="px-3.5 py-2 text-sm font-semibold min-w-[36px] text-center select-none">
                   {quantity}
                 </span>
                 <button
                   onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
-                  className="px-3 py-2 hover:bg-ivory-dark transition-colors"
+                  className="px-3 py-2 hover:bg-[var(--ivory-dark)] transition-colors active:scale-95"
+                  aria-label="Increase quantity"
                 >
                   <Plus size={14} />
                 </button>
               </div>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex gap-3 mb-6">
+            {/* Action buttons (Add to Cart & Buy Now) */}
+            <div className="w-full min-w-0 space-y-3 mb-6">
               <button
                 onClick={handleAddToCart}
                 disabled={adding || product.stock === 0}
-                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold text-sm text-white transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm box-border"
                 style={{ backgroundColor: added ? "#15803d" : "var(--burgundy)" }}
               >
                 {adding ? (
@@ -275,80 +313,73 @@ export default function ProductPage() {
                 ) : added ? (
                   <span>✓ Added to Cart!</span>
                 ) : (
-                  <ShoppingBag size={16} />
+                  <ShoppingBag size={17} />
                 )}
                 {!adding && !added && (product.stock === 0 ? "Out of Stock" : "Add to Cart")}
               </button>
 
-              <button
-                onClick={() => toggle(product.id)}
-                className="px-4 py-3.5 rounded-xl border-2 transition-all hover:scale-105"
-                style={{
-                  borderColor: wishlisted ? "var(--burgundy)" : "var(--border)",
-                  backgroundColor: wishlisted ? "rgba(101,31,53,0.05)" : "white",
-                }}
-              >
-                <Heart
-                  size={18}
-                  fill={wishlisted ? "var(--burgundy)" : "none"}
-                  stroke="var(--burgundy)"
-                />
-              </button>
+              {product.stock > 0 && (
+                <button
+                  className="w-full flex items-center justify-center py-3.5 px-4 rounded-xl font-semibold text-sm border-2 transition-all hover:scale-[1.01] active:scale-[0.99] box-border"
+                  style={{
+                    borderColor: "var(--burgundy)",
+                    color: "var(--burgundy)",
+                    backgroundColor: "transparent",
+                  }}
+                >
+                  Buy Now
+                </button>
+              )}
             </div>
 
-            {/* Buy now */}
-            {product.stock > 0 && (
-              <button
-                className="w-full py-3.5 rounded-xl font-semibold text-sm border-2 transition-all hover:scale-[1.02] mb-6"
-                style={{ borderColor: "var(--burgundy)", color: "var(--burgundy)", backgroundColor: "transparent" }}
-              >
-                Buy Now
-              </button>
-            )}
-
             {/* Trust badges */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              {[
-                { icon: Truck, label: "Free Shipping" },
-                { icon: RefreshCw, label: "Easy Returns" },
-                { icon: ShieldCheck, label: "Authentic" },
-              ].map((b) => (
-                <div
-                  key={b.label}
-                  className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-center"
-                  style={{ backgroundColor: "var(--ivory-dark)" }}
-                >
-                  <b.icon size={18} style={{ color: "var(--burgundy)" }} />
-                  <span className="text-[11px] font-medium" style={{ color: "var(--charcoal)" }}>
-                    {b.label}
-                  </span>
-                </div>
-              ))}
+            <div className="w-full min-w-0 max-w-full overflow-hidden mb-6">
+              <div className="flex sm:grid sm:grid-cols-3 gap-2.5 sm:gap-3 overflow-x-auto category-scroll w-full min-w-0 py-1 px-0.5 box-border">
+                {[
+                  { icon: Truck, label: "Free Shipping" },
+                  { icon: RefreshCw, label: "Easy Returns" },
+                  { icon: ShieldCheck, label: "Authentic" },
+                ].map((b) => (
+                  <div
+                    key={b.label}
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl text-center shrink-0 w-[115px] sm:w-auto h-20 box-border"
+                    style={{ backgroundColor: "var(--ivory-dark)" }}
+                  >
+                    <b.icon size={18} style={{ color: "var(--burgundy)" }} />
+                    <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--charcoal)" }}>
+                      {b.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Accordion sections */}
-            <div className="space-y-2">
+            <div className="space-y-2 w-full min-w-0">
               {infoSections.map((sec) => (
                 <div
                   key={sec.id}
-                  className="rounded-xl overflow-hidden"
-                  style={{ border: "1px solid var(--border)" }}
+                  className="w-full min-w-0 rounded-xl overflow-hidden box-border"
+                  style={{ border: "1px solid var(--border)", backgroundColor: "white" }}
                 >
                   <button
                     onClick={() => setExpandedSection(expandedSection === sec.id ? null : sec.id)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    className="w-full flex items-center justify-between px-4 py-3.5 text-left transition-colors hover:bg-[var(--ivory)]"
                   >
-                    <span className="text-sm font-semibold" style={{ color: "var(--charcoal)" }}>
+                    <span className="text-sm font-semibold min-w-0 break-words pr-2" style={{ color: "var(--charcoal)" }}>
                       {sec.title}
                     </span>
                     {expandedSection === sec.id ? (
-                      <ChevronUp size={16} style={{ color: "#9B8A7A" }} />
+                      <ChevronUp size={16} className="shrink-0" style={{ color: "#9B8A7A" }} />
                     ) : (
-                      <ChevronDown size={16} style={{ color: "#9B8A7A" }} />
+                      <ChevronDown size={16} className="shrink-0" style={{ color: "#9B8A7A" }} />
                     )}
                   </button>
                   {expandedSection === sec.id && (
-                    <div className="px-4 pb-4 text-sm" style={{ color: "#6B5B4A" }}>
+                    <div
+                      className="px-4 pb-4 pt-1 text-sm break-words leading-relaxed"
+                      style={{ color: "#6B5B4A", overflowWrap: "anywhere" }}
+                    >
                       {sec.content}
                     </div>
                   )}
@@ -360,9 +391,9 @@ export default function ProductPage() {
 
         {/* Related products */}
         {related.length > 0 && (
-          <section className="mt-16">
-            <h2 className="section-heading mb-6">You May Also Like</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
+          <section className="mt-12 sm:mt-16 w-full min-w-0">
+            <h2 className="section-heading mb-4 sm:mb-6">You May Also Like</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5 w-full min-w-0">
               {related.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

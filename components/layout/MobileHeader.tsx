@@ -36,11 +36,11 @@ export function MobileHeader() {
       }}
     >
       {/* Top row */}
-      <div className="flex items-center justify-between px-4 py-2.5 w-full">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 w-full min-w-0 box-border">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="/" className="flex items-center gap-2 sm:gap-2.5 min-w-0 shrink">
           <div
-            className="w-9 h-9 rounded-full overflow-hidden border-2 flex items-center justify-center flex-shrink-0"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden border-2 flex items-center justify-center shrink-0"
             style={{ borderColor: "var(--gold)", backgroundColor: "var(--ivory)" }}
           >
             <Image
@@ -55,26 +55,26 @@ export function MobileHeader() {
               }}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <div
-              className="font-serif font-bold text-[15px] leading-tight"
+              className="font-serif font-bold text-sm sm:text-[15px] leading-tight truncate"
               style={{ color: "var(--burgundy)" }}
             >
               Trendy Sisters
             </div>
-            <div className="text-[10px] leading-tight" style={{ color: "var(--gold)" }}>
+            <div className="text-[9px] sm:text-[10px] leading-tight truncate hidden min-[360px]:block" style={{ color: "var(--gold)" }}>
               Three Sisters, One Dream
             </div>
           </div>
         </Link>
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Auth controls */}
           <Show when="signed-out">
             <Link
               href="/auth/login"
-              className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+              className="px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold border transition-all shrink-0"
               style={{ borderColor: "var(--burgundy)", color: "var(--burgundy)" }}
             >
               Sign In
@@ -86,14 +86,14 @@ export function MobileHeader() {
 
           <Link
             href="/wishlist"
-            className="relative flex items-center justify-center w-10 h-10 rounded-full"
+            className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full shrink-0"
             style={{ color: "var(--charcoal)" }}
             aria-label="Wishlist"
           >
-            <Heart size={20} />
+            <Heart size={19} />
             {wishlistCount > 0 && (
               <span
-                className="absolute top-1 right-1 w-4 h-4 rounded-full text-white flex items-center justify-center font-bold"
+                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full text-white flex items-center justify-center font-bold"
                 style={{ backgroundColor: "var(--gold)", fontSize: 9 }}
               >
                 {wishlistCount > 9 ? "9+" : wishlistCount}
@@ -102,14 +102,14 @@ export function MobileHeader() {
           </Link>
           <Link
             href="/cart"
-            className="relative flex items-center justify-center w-10 h-10 rounded-full"
+            className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full shrink-0"
             style={{ color: "var(--charcoal)" }}
             aria-label="Cart"
           >
-            <ShoppingBag size={20} />
+            <ShoppingBag size={19} />
             {itemCount > 0 && (
               <span
-                className="absolute top-1 right-1 w-4 h-4 rounded-full text-white flex items-center justify-center font-bold"
+                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full text-white flex items-center justify-center font-bold"
                 style={{ backgroundColor: "var(--burgundy)", fontSize: 9 }}
               >
                 {itemCount > 9 ? "9+" : itemCount}
@@ -120,8 +120,8 @@ export function MobileHeader() {
       </div>
 
       {/* Search bar */}
-      <div className="px-4 pb-3 w-full">
-        <form onSubmit={handleSearch} className="relative">
+      <div className="px-3 sm:px-4 pb-2.5 sm:pb-3 w-full box-border">
+        <form onSubmit={handleSearch} className="relative w-full">
           <Search
             size={15}
             className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -132,12 +132,11 @@ export function MobileHeader() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search sarees, silk, wedding wear…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-full text-sm outline-none"
+            className="w-full max-w-full pl-9 pr-4 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm outline-none box-border"
             style={{
               backgroundColor: "var(--ivory-dark)",
               border: "1px solid var(--border)",
               color: "var(--charcoal)",
-              fontSize: 14,
             }}
           />
         </form>
