@@ -72,6 +72,7 @@ interface AdminContextType {
   reorderProductImages: (productId: string, newImages: ProductImage[]) => Promise<void>
 
   // Order Actions
+  addAdminOrder: (order: AdminOrder) => void
   updateOrderStatus: (
     orderId: string,
     status: OrderStatus,
@@ -199,16 +200,57 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         if (dbBanners) setBanners(dbBanners)
       }
 
-      // Load saved orders from local storage if available
-      if (typeof window !== "undefined") {
-        const savedOrders = localStorage.getItem(STORAGE_KEYS.ORDERS)
-        if (savedOrders) {
-          try {
-            const parsed = JSON.parse(savedOrders)
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setOrders(parsed)
+      // 5. Fetch Orders from live Server API / Supabase
+      try {
+        const ordersRes = await fetch("/api/admin/orders", {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
+        })
+        const ordersResult = await ordersRes.json()
+        if (ordersResult.success && Array.isArray(ordersResult.orders) && ordersResult.orders.length > 0) {
+          // Merge with any local storage orders that might not yet be in db
+          let localOrders: AdminOrder[] = []
+          if (typeof window !== "undefined") {
+            try {
+              const saved = localStorage.getItem(STORAGE_KEYS.ORDERS)
+              if (saved) localOrders = JSON.parse(saved)
+            } catch {}
+          }
+          const dbIds = new Set(ordersResult.orders.map((o: AdminOrder) => o.id))
+          const merged = [
+            ...localOrders.filter((o) => !dbIds.has(o.id)),
+            ...ordersResult.orders,
+          ]
+          setOrders(merged)
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(merged))
+            } catch {}
+          }
+        } else {
+          // Fallback to local storage if API returned empty
+          if (typeof window !== "undefined") {
+            const savedOrders = localStorage.getItem(STORAGE_KEYS.ORDERS)
+            if (savedOrders) {
+              const parsed = JSON.parse(savedOrders)
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setOrders(parsed)
+              }
             }
-          } catch (e) {}
+          }
+        }
+      } catch (ordersErr) {
+        console.warn("[AdminContext] Error fetching live orders, using localStorage fallback:", ordersErr)
+        if (typeof window !== "undefined") {
+          const savedOrders = localStorage.getItem(STORAGE_KEYS.ORDERS)
+          if (savedOrders) {
+            try {
+              const parsed = JSON.parse(savedOrders)
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setOrders(parsed)
+              }
+            } catch {}
+          }
         }
       }
     } catch (err) {
@@ -232,6 +274,54 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [])
+
+  // Action: Add new order into Admin state immediately (e.g. from checkout COD booking)
+  const addAdminOrder = useCallback(
+    (newOrder: AdminOrder) => {
+      setOrders((prev) => {
+        const next = [
+          newOrder,
+          ...prev.filter((o) => o.id !== newOrder.id && o.order_number !== newOrder.order_number),
+        ]
+        persistOrders(next)
+        return next
+      })
+      showToast(
+        "New COD Order Received!",
+        `Order #${newOrder.order_number} for ₹${newOrder.total.toLocaleString("en-IN")} from ${newOrder.customer_name}`,
+        "success"
+      )
+    },
+    [persistOrders, showToast]
+  )
+
+  // Listen to order placement events across windows & checkout
+  useEffect(() => {
+    const handleOrderEvent = (e: any) => {
+      if (e.detail) {
+        addAdminOrder(e.detail)
+      }
+    }
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEYS.ORDERS && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue)
+          if (Array.isArray(parsed)) {
+            setOrders(parsed)
+          }
+        } catch {}
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("trendy_order_placed", handleOrderEvent)
+      window.addEventListener("storage", handleStorageEvent)
+      return () => {
+        window.removeEventListener("trendy_order_placed", handleOrderEvent)
+        window.removeEventListener("storage", handleStorageEvent)
+      }
+    }
+  }, [addAdminOrder])
 
   // =========================================================================
   // PRODUCT MUTATIONS: Real Server Sync → Supabase PostgreSQL → Revalidation
@@ -566,7 +656,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   // Update Order Status
   const updateOrderStatus = useCallback(
-    (orderId: string, status: OrderStatus, paymentStatus?: AdminOrder["payment_status"]) => {
+    async (orderId: string, status: OrderStatus, paymentStatus?: AdminOrder["payment_status"]) => {
       const next = orders.map((o) => {
         if (o.id !== orderId) return o
         return {
@@ -578,6 +668,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       })
       persistOrders(next)
       showToast("Fulfillment Updated", `Order status changed to "${status.toUpperCase()}".`, "success")
+
+      try {
+        await fetch("/api/admin/orders", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: orderId, status, payment_status: paymentStatus }),
+        })
+      } catch (e) {
+        console.warn("[AdminContext] Error updating order status on server:", e)
+      }
     },
     [orders, persistOrders, showToast]
   )
@@ -819,6 +919,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         removeProductImage,
         reorderProductImages,
 
+        addAdminOrder,
         updateOrderStatus,
 
         updateCategory,
