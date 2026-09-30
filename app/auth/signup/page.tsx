@@ -4,11 +4,13 @@ import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, KeyRound, Phone } from "lucide-react"
-import { useSignUp } from "@clerk/nextjs"
+import { useSignUp, useClerk } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 
 export default function SignupPage() {
   const { signUp } = useSignUp()
+  const clerk = useClerk()
+  const isLoaded = clerk.loaded
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -26,7 +28,7 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!signUp) return
+    if (!signUp || !isLoaded) return
     setError("")
 
     if (form.password !== form.confirmPassword) {
@@ -45,29 +47,43 @@ export default function SignupPage() {
       const firstName = parts[0] || "User"
       const lastName = parts.slice(1).join(" ") || undefined
 
-      let formattedPhone = form.phone.trim()
-      if (formattedPhone && !formattedPhone.startsWith("+")) {
-        // If it starts with 0, remove it. Otherwise just add +91
-        if (formattedPhone.startsWith("0")) formattedPhone = formattedPhone.substring(1)
-        formattedPhone = "+91" + formattedPhone
-      }
-
-      const result = await signUp.create({
+      const createParams: any = {
         emailAddress: form.email.trim(),
-        phoneNumber: formattedPhone,
         password: form.password,
         firstName,
         lastName,
-      })
-      if (result.error) throw result.error;
+      }
 
-      // Send verification code
-      const sendResult = await signUp.verifications.sendEmailCode()
-      if (sendResult.error) throw sendResult.error;
+      let rawPhone = form.phone.trim().replace(/\s+/g, "")
+      if (rawPhone.length > 5) {
+        if (!rawPhone.startsWith("+")) {
+          if (rawPhone.startsWith("0")) rawPhone = rawPhone.substring(1)
+          rawPhone = "+91" + rawPhone
+        }
+        createParams.phoneNumber = rawPhone
+      }
+
+      const result: any = await signUp.create(createParams)
+      if (result && "error" in result && result.error) throw result.error
+
+      // Send verification code supporting both future API and standard API
+      if ((signUp as any).verifications?.sendEmailCode) {
+        const sendResult = await (signUp as any).verifications.sendEmailCode()
+        if (sendResult?.error) throw sendResult.error
+      } else if (typeof (signUp as any).prepareEmailAddressVerification === "function") {
+        await (signUp as any).prepareEmailAddressVerification({ strategy: "email_code" })
+      }
+
       setCodeSent(true)
     } catch (err: any) {
-      console.error("Clerk Signup Error details:", err);
-      const msg = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || "Failed to create account"
+      console.error("Clerk Signup Error details:", err)
+      const firstErr = Array.isArray(err.errors) && err.errors.length > 0 ? err.errors[0] : null
+      const msg =
+        firstErr?.longMessage ||
+        firstErr?.message ||
+        err.longMessage ||
+        err.message ||
+        "Failed to create account"
       setError(msg)
     } finally {
       setLoading(false)
@@ -76,25 +92,45 @@ export default function SignupPage() {
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!signUp) return
+    if (!signUp || !isLoaded) return
     setVerifying(true)
     setError("")
 
     try {
-      const verifyResult = await signUp.verifications.verifyEmailCode({
-        code: verificationCode.trim(),
-      })
-      if (verifyResult.error) throw verifyResult.error;
+      let verifyResult: any = null
+      if ((signUp as any).verifications?.verifyEmailCode) {
+        verifyResult = await (signUp as any).verifications.verifyEmailCode({
+          code: verificationCode.trim(),
+        })
+        if (verifyResult?.error) throw verifyResult.error
+      } else if (typeof (signUp as any).attemptEmailAddressVerification === "function") {
+        verifyResult = await (signUp as any).attemptEmailAddressVerification({
+          code: verificationCode.trim(),
+        })
+      }
 
-      if (signUp.status === "complete") {
-        await signUp.finalize()
+      const status = verifyResult?.status || signUp.status
+      if (status === "complete") {
+        const sessionId = (verifyResult as any)?.createdSessionId || (signUp as any)?.createdSessionId
+        if (clerk && sessionId) {
+          await clerk.setActive({ session: sessionId })
+        } else if (typeof (signUp as any).finalize === "function") {
+          const fin = await (signUp as any).finalize()
+          if (fin?.error) throw fin.error
+        }
         router.push("/account")
         router.refresh()
       } else {
         setError("Verification incomplete. Please check your code.")
       }
     } catch (err: any) {
-      const msg = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || "Invalid verification code"
+      const firstErr = Array.isArray(err.errors) && err.errors.length > 0 ? err.errors[0] : null
+      const msg =
+        firstErr?.longMessage ||
+        firstErr?.message ||
+        err.longMessage ||
+        err.message ||
+        "Invalid verification code"
       setError(msg)
     } finally {
       setVerifying(false)

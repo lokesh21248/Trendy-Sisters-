@@ -100,12 +100,13 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isLoaded) {
+      // Clear cached wishlist ID on user transition to ensure strict user data isolation
+      wishlistIdRef.current = null
       if (userId) {
         userIdRef.current = userId
         syncWishlist(userId)
       } else {
         userIdRef.current = null
-        wishlistIdRef.current = null
       }
     }
   }, [userId, isLoaded, syncWishlist])

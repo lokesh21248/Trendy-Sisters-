@@ -155,12 +155,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Sync user and cart on session change
   useEffect(() => {
     if (isLoaded) {
+      // Clear cached cart ID on any user transition to ensure strict user data isolation
+      cartIdRef.current = null
       if (userId) {
         userIdRef.current = userId
         refetch()
       } else {
         userIdRef.current = null
-        cartIdRef.current = null
       }
     }
   }, [userId, isLoaded, refetch])
