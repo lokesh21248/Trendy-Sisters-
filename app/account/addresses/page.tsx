@@ -89,8 +89,9 @@ export default function AddressesPage() {
     if (user && !fullName) {
       const name = `${user.firstName || ""} ${user.lastName || ""}`.trim()
       if (name) setFullName(name)
-      if (user.primaryPhoneNumber?.phoneNumber) {
-        setPhone(user.primaryPhoneNumber.phoneNumber.replace(/^\+91/, ""))
+      const userPhone = user.primaryPhoneNumber?.phoneNumber || (user.unsafeMetadata?.phone as string) || ""
+      if (userPhone) {
+        setPhone(userPhone.replace(/^\+91/, ""))
       }
     }
   }, [user, fullName])
@@ -142,7 +143,8 @@ export default function AddressesPage() {
 
   function resetForm() {
     setFullName(user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "")
-    setPhone(user?.primaryPhoneNumber?.phoneNumber?.replace(/^\+91/, "") || "")
+    const userPhone = user?.primaryPhoneNumber?.phoneNumber || (user?.unsafeMetadata?.phone as string) || ""
+    setPhone(userPhone.replace(/^\+91/, "") || "")
     setHouseFlat("")
     setStreet("")
     setCity("")

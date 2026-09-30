@@ -6,6 +6,7 @@ import Image from "next/image"
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, KeyRound, Phone } from "lucide-react"
 import { useSignUp, useClerk } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 
 export default function SignupPage() {
   const { signUp } = useSignUp()
@@ -47,23 +48,41 @@ export default function SignupPage() {
       const firstName = parts[0] || "User"
       const lastName = parts.slice(1).join(" ") || undefined
 
-      const createParams: any = {
-        emailAddress: form.email.trim(),
-        password: form.password,
-        firstName,
-        lastName,
-      }
-
       let rawPhone = form.phone.trim().replace(/\s+/g, "")
       if (rawPhone.length > 5) {
         if (!rawPhone.startsWith("+")) {
           if (rawPhone.startsWith("0")) rawPhone = rawPhone.substring(1)
           rawPhone = "+91" + rawPhone
         }
-        createParams.phoneNumber = rawPhone
       }
 
-      const result: any = await signUp.create(createParams)
+      // Store phone in unsafeMetadata instead of passing as top-level phoneNumber
+      // This prevents Clerk from rejecting the request when Phone Number auth is disabled in Clerk Dashboard
+      const createParams: any = {
+        emailAddress: form.email.trim(),
+        password: form.password,
+        firstName,
+        lastName,
+        unsafeMetadata: {
+          phone: rawPhone || undefined,
+          fullName: form.fullName.trim(),
+        },
+      }
+
+      let result: any
+      try {
+        result = await signUp.create(createParams)
+      } catch (createErr: any) {
+        console.warn("Retrying signup with basic params due to:", createErr)
+        // If unsafeMetadata is rejected for any reason, retry with basic fields
+        result = await signUp.create({
+          emailAddress: form.email.trim(),
+          password: form.password,
+          firstName,
+          lastName,
+        })
+      }
+
       if (result && "error" in result && result.error) throw result.error
 
       // Send verification code supporting both future API and standard API
@@ -112,6 +131,38 @@ export default function SignupPage() {
       const status = verifyResult?.status || signUp.status
       if (status === "complete") {
         const sessionId = (verifyResult as any)?.createdSessionId || (signUp as any)?.createdSessionId
+        const userId = (verifyResult as any)?.createdUserId || (signUp as any)?.createdUserId
+
+        // Save phone and profile details to Supabase & localStorage so user has their data immediately
+        if (userId) {
+          try {
+            let rawPhone = form.phone.trim().replace(/\s+/g, "")
+            if (rawPhone.length > 5 && !rawPhone.startsWith("+")) {
+              if (rawPhone.startsWith("0")) rawPhone = rawPhone.substring(1)
+              rawPhone = "+91" + rawPhone
+            }
+
+            const extendedData = {
+              firstName: form.fullName.trim().split(" ")[0] || "",
+              lastName: form.fullName.trim().split(" ").slice(1).join(" ") || "",
+              phone: rawPhone,
+              updatedAt: new Date().toISOString(),
+            }
+            localStorage.setItem(`ts_profile_${userId}`, JSON.stringify(extendedData))
+
+            const supabase = createClient()
+            await (supabase as any).from("profiles").upsert({
+              id: userId,
+              full_name: form.fullName.trim(),
+              phone: rawPhone || null,
+              email: form.email.trim(),
+              updated_at: new Date().toISOString(),
+            })
+          } catch (syncErr) {
+            console.warn("Profile sync after signup skipped:", syncErr)
+          }
+        }
+
         if (clerk && sessionId) {
           await clerk.setActive({ session: sessionId })
         } else if (typeof (signUp as any).finalize === "function") {

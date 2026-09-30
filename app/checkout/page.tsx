@@ -74,6 +74,21 @@ export default function CheckoutPage() {
   // Auto-fill from user session if available
   useEffect(() => {
     if (user) {
+      let phoneFromStorage = ""
+      try {
+        const storedProfile = localStorage.getItem(`ts_profile_${user.id}`)
+        if (storedProfile) {
+          const parsed = JSON.parse(storedProfile)
+          if (parsed?.phone) phoneFromStorage = parsed.phone
+        }
+      } catch {}
+
+      const userPhone =
+        user.primaryPhoneNumber?.phoneNumber ||
+        (user.unsafeMetadata?.phone as string) ||
+        phoneFromStorage ||
+        ""
+
       setShippingForm((prev) => ({
         ...prev,
         firstName: prev.firstName || user.firstName || "",
@@ -82,6 +97,7 @@ export default function CheckoutPage() {
           prev.email ||
           user.primaryEmailAddress?.emailAddress ||
           "",
+        phone: prev.phone || userPhone.replace(/^\+91/, ""),
       }))
     }
   }, [user])

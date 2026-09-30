@@ -42,8 +42,11 @@ export default function ProfilePage() {
       setFirstName(user.firstName || "")
       setLastName(user.lastName || "")
 
-      // Phone from Clerk
-      const userPhone = user.primaryPhoneNumber?.phoneNumber || ""
+      // Phone from Clerk or metadata
+      const userPhone =
+        user.primaryPhoneNumber?.phoneNumber ||
+        (user.unsafeMetadata?.phone as string) ||
+        ""
       if (userPhone) {
         setPhone(userPhone.replace(/^\+91/, ""))
       }
@@ -126,10 +129,17 @@ export default function ProfilePage() {
     setMessage(null)
 
     try {
-      // 1. Update Clerk user profile
+      // 1. Update Clerk user profile & metadata
       await user.update({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        unsafeMetadata: {
+          ...user.unsafeMetadata,
+          phone: phone.trim() ? `+91${phone.trim().replace(/^\+91/, "")}` : "",
+          gender,
+          dob,
+          altPhone: altPhone.trim(),
+        },
       })
 
       // 2. Save extended profile details (phone, gender, dob, altPhone) locally & to Supabase
