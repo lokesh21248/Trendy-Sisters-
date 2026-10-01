@@ -154,7 +154,7 @@ export function Footer() {
                 className="w-10 h-10 rounded-full overflow-hidden border-2 flex items-center justify-center"
                 style={{ borderColor: "var(--gold)", backgroundColor: "var(--ivory)" }}
               >
-                <Image src="/logo.png" alt="Trendy Sisters" width={40} height={40} className="object-contain" />
+                <Image src="/logo.jpg" alt="Trendy Sisters" width={40} height={40} className="object-contain" />
               </div>
               <div>
                 <div className="font-serif font-bold text-base text-ivory">Trendy Sisters</div>
@@ -235,7 +235,7 @@ export function Footer() {
                 className="w-14 h-14 rounded-full overflow-hidden border-2 flex items-center justify-center bg-ivory"
                 style={{ borderColor: "var(--gold)" }}
               >
-                <Image src="/logo.png" alt="Trendy Sisters" width={56} height={56} className="object-contain" />
+                <Image src="/logo.jpg" alt="Trendy Sisters" width={56} height={56} className="object-contain" />
               </div>
               <div>
                 <div className="font-serif font-bold text-xl text-ivory">Trendy Sisters</div>

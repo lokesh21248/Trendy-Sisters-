@@ -44,7 +44,7 @@ export function MobileHeader() {
             style={{ borderColor: "var(--gold)", backgroundColor: "var(--ivory)" }}
           >
             <Image
-              src="/logo.png"
+              src="/logo.jpg"
               alt="Trendy Sisters"
               width={36}
               height={36}

@@ -53,7 +53,7 @@ export function Header() {
                 style={{ borderColor: "var(--gold)" }}
               >
                 <Image
-                  src="/logo.png"
+                  src="/logo.jpg"
                   alt="Trendy Sisters"
                   width={56}
                   height={56}
