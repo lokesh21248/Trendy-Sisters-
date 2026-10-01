@@ -61,7 +61,7 @@ export default function ProfilePage() {
         setPhone(userPhone.replace(/^\+91/, ""))
       }
 
-      // Load additional profile fields (gender, dob, altPhone) from Supabase or localStorage
+      // Load additional profile fields from Supabase or localStorage
       async function loadExtraProfile() {
         try {
           const localData = localStorage.getItem(`ts_profile_${user?.id}`)
@@ -73,12 +73,19 @@ export default function ProfilePage() {
             if (parsed.phone && !userPhone) setPhone(parsed.phone)
           }
 
-          // Also check server-synced profile
+          // Check server-synced Supabase profile
           try {
-            const res = await fetch("/api/profile/sync")
+            const res = await fetch(`/api/profile/sync?userId=${user?.id}`)
             const json = await res.json()
-            if (json.success && json.profile?.phone && !userPhone) {
-              setPhone(json.profile.phone)
+            if (json.success && json.profile) {
+              if (json.profile.phone && !userPhone) {
+                setPhone(json.profile.phone.replace(/^\+91/, ""))
+              }
+              if (json.profile.full_name && !initialFn) {
+                const parts = json.profile.full_name.trim().split(" ")
+                setFirstName(parts[0] || "")
+                setLastName(parts.slice(1).join(" ") || "")
+              }
             }
           } catch {}
         } catch (err) {
@@ -182,20 +189,42 @@ export default function ProfilePage() {
 
       localStorage.setItem(`ts_profile_${user.id}`, JSON.stringify(extendedData))
 
-      // Sync with database profile via server API
+      // Sync with database profile via direct Supabase client and server API
+      const cleanFullName = `${firstName.trim()} ${lastName.trim()}`.trim()
+      const cleanPhone = phone.trim() ? `+91${phone.trim().replace(/^\+91/, "")}` : null
+      const cleanEmail = user.primaryEmailAddress?.emailAddress || null
+
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("profiles").upsert(
+          {
+            id: user.id,
+            full_name: cleanFullName,
+            phone: cleanPhone,
+            email: cleanEmail,
+            avatar_url: user.imageUrl,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" }
+        )
+      } catch (sbErr) {
+        console.warn("Direct Supabase profile update notice:", sbErr)
+      }
+
       try {
         await fetch("/api/profile/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-            phone: phone.trim() ? `+91${phone.trim().replace(/^\+91/, "")}` : null,
-            email: user.primaryEmailAddress?.emailAddress || null,
+            userId: user.id,
+            full_name: cleanFullName,
+            phone: cleanPhone,
+            email: cleanEmail,
             avatar_url: user.imageUrl,
           }),
         })
       } catch (dbErr) {
-        console.warn("Profile sync skipped:", dbErr)
+        console.warn("Profile sync notice:", dbErr)
       }
 
       setMessage({ type: "success", text: "Your profile information has been saved successfully!" })

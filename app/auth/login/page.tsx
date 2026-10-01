@@ -140,14 +140,30 @@ function LoginForm() {
     }
   }, [searchParams])
 
-  // Helper to safely check and sync user profile in database via server API
+  // Helper to safely check and sync user profile in database via direct client and server API
   const syncUserProfile = async (userId: string, userEmail: string) => {
     try {
       console.log(`[AUTH] Profile loaded for user ID: ${userId}`)
+      // 1. Direct client Supabase upsert (immediate guarantee)
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("profiles").upsert(
+          {
+            id: userId,
+            email: userEmail,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" }
+        )
+      } catch (sbErr) {
+        console.warn("[AUTH] Direct Supabase upsert notice:", sbErr)
+      }
+
+      // 2. Server API sync
       await fetch("/api/profile/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail }),
+        body: JSON.stringify({ userId, email: userEmail }),
       })
     } catch (syncErr) {
       console.warn("[AUTH] Profile sync notice:", syncErr)

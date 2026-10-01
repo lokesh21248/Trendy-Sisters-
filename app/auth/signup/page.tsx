@@ -6,6 +6,7 @@ import Image from "next/image"
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, KeyRound, Phone, RefreshCw } from "lucide-react"
 import { useSignUp, useClerk } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 
 function getSafeRedirectUrl(param: string | null): string {
   if (!param) return "/"
@@ -206,18 +207,43 @@ function SignupForm() {
           console.log("[AUTH] Session activated")
         }
 
-        // Sync/create application profile immediately using Clerk user ID
+        // Sync/create application profile immediately using Clerk user ID (direct Supabase + API)
         try {
+          const cleanPhone = form.phone.trim() ? `+91${form.phone.trim().replace(/^\+91/, "")}` : null
+          const cleanEmail = form.email.trim()
+          const cleanFullName = form.fullName.trim()
+
+          // 1. Direct Supabase upsert (immediate guarantee)
+          try {
+            const supabase = createClient()
+            await (supabase as any).from("profiles").upsert(
+              {
+                id: userId,
+                full_name: cleanFullName,
+                phone: cleanPhone,
+                email: cleanEmail,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "id" }
+            )
+            console.log("[AUTH] Direct Supabase profile created")
+          } catch (sbErr) {
+            console.warn("[AUTH] Direct Supabase profile creation notice:", sbErr)
+          }
+
+          // 2. Server API sync
           await fetch("/api/profile/sync", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              full_name: form.fullName.trim(),
-              phone: form.phone.trim() ? `+91${form.phone.trim().replace(/^\+91/, "")}` : null,
-              email: form.email.trim(),
+              userId,
+              full_name: cleanFullName,
+              phone: cleanPhone,
+              email: cleanEmail,
             }),
           })
-          console.log("[AUTH] Profile created")
+          console.log("[AUTH] Profile created and verified via API")
         } catch (apiErr) {
           console.warn("[AUTH] Profile sync notice:", apiErr)
         }

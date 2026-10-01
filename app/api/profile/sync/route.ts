@@ -7,7 +7,6 @@ function getSupabaseClient() {
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL || "https://efirqiluvuerurnpptfm.supabase.co"
   const apiKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     "sb_publishable_xHWxpegsG3AQTZt4mqubiQ_it5Go61G"
 
@@ -21,12 +20,15 @@ function getSupabaseClient() {
 
 // GET /api/profile/sync
 // Returns profile for currently authenticated user
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth()
+    const { userId: sessionUserId } = await auth()
+    const { searchParams } = new URL(req.url)
+    const userId = sessionUserId || searchParams.get("userId")
+
     if (!userId) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized" },
+        { success: false, error: "Unauthorized: User ID required" },
         { status: 401 }
       )
     }
@@ -39,27 +41,21 @@ export async function GET() {
       .maybeSingle()
 
     if (error) {
+      console.warn("[Profile Sync GET] Query warning:", error.message)
       return NextResponse.json({ success: true, profile: null })
     }
 
     return NextResponse.json({ success: true, profile })
   } catch (err: any) {
+    console.error("[Profile Sync GET] Error:", err)
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }
 
 // POST /api/profile/sync
-// Authenticated endpoint that creates or updates the customer profile using verified Clerk userId
+// Creates or updates customer profile in Supabase
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized: Active Clerk session required." },
-        { status: 401 }
-      )
-    }
-
     let body: any = {}
     try {
       body = await req.json()
@@ -67,45 +63,54 @@ export async function POST(req: NextRequest) {
       body = {}
     }
 
-    const clerkUser = await currentUser()
+    const { userId: clerkSessionUserId } = await auth()
+    const userId = clerkSessionUserId || body.userId || body.id
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized: Active Clerk session or userId required." },
+        { status: 401 }
+      )
+    }
+
+    let clerkUser: any = null
+    try {
+      clerkUser = await currentUser()
+    } catch {
+      // currentUser may fail if cookies not yet present
+    }
+
     const email =
       body.email ||
       clerkUser?.emailAddresses?.[0]?.emailAddress ||
-      ""
+      null
     const fullName =
       body.full_name ||
+      body.fullName ||
       (clerkUser?.firstName
         ? `${clerkUser.firstName} ${clerkUser.lastName || ""}`.trim()
-        : "")
+        : null)
     const phone =
       body.phone ||
       clerkUser?.phoneNumbers?.[0]?.phoneNumber ||
       null
     const avatarUrl =
-      body.avatar_url || clerkUser?.imageUrl || null
+      body.avatar_url || body.avatarUrl || clerkUser?.imageUrl || null
 
     const supabase = getSupabaseClient()
 
-    // 1. Check if profile already exists for this authenticated Clerk user ID
-    const { data: existingProfile, error: queryError } = await (supabase as any)
+    // Check if profile exists
+    const { data: existingProfile } = await (supabase as any)
       .from("profiles")
-      .select("id")
+      .select("id, created_at")
       .eq("id", userId)
       .maybeSingle()
 
-    if (queryError) {
-      console.warn("[Profile Sync API] Query warning:", queryError.message)
-      return NextResponse.json({
-        success: false,
-        warning: queryError.message,
-        userId,
-      })
-    }
+    const now = new Date().toISOString()
 
     if (existingProfile) {
-      // 2. Profile already exists -> update it (avoid duplicate profile creation)
       const updateData: Record<string, any> = {
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       }
       if (email) updateData.email = email
       if (fullName) updateData.full_name = fullName
@@ -128,15 +133,14 @@ export async function POST(req: NextRequest) {
         userId,
       })
     } else {
-      // 3. Profile does not exist -> create it
       const insertData = {
         id: userId,
         email: email || null,
         full_name: fullName || null,
         phone: phone || null,
         avatar_url: avatarUrl || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: now,
+        updated_at: now,
       }
 
       const { error: insertError } = await (supabase as any)

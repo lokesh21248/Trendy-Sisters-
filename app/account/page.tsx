@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Package, MapPin, Heart, Tag, CreditCard, Bell, ChevronRight, User } from "lucide-react"
 import { SignOutButton } from "@clerk/nextjs"
+import { createStaticClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
 
@@ -23,6 +24,23 @@ export default async function AccountPage() {
     : metaFullName || user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] || "Shopper"
   const email = user?.emailAddresses?.[0]?.emailAddress || ""
   const avatarUrl = user?.imageUrl
+
+  // Ensure profile is synced to Supabase database
+  try {
+    const supabase = createStaticClient()
+    await (supabase as any).from("profiles").upsert(
+      {
+        id: userId,
+        email,
+        full_name: displayName,
+        avatar_url: avatarUrl,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    )
+  } catch (syncErr) {
+    console.warn("Account page profile sync notice:", syncErr)
+  }
 
   const accountCards = [
     {
