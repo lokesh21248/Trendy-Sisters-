@@ -6,6 +6,8 @@ import "./globals.css"
 import { StoreLayoutShell } from "@/components/layout/StoreLayoutShell"
 import { CartProvider } from "@/contexts/CartContext"
 import { WishlistProvider } from "@/contexts/WishlistContext"
+import { NavigationProgress } from "@/components/layout/NavigationProgress"
+import { Suspense } from "react"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
@@ -53,6 +55,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <head>
+        {/* DNS prefetch for faster Supabase API responses */}
+        <link rel="dns-prefetch" href="https://efirqiluvuerurnpptfm.supabase.co" />
+        <link rel="preconnect" href="https://efirqiluvuerurnpptfm.supabase.co" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -88,6 +93,10 @@ export default function RootLayout({
         >
           <CartProvider>
             <WishlistProvider>
+              {/* Navigation progress bar — instant feedback on every route change */}
+              <Suspense fallback={null}>
+                <NavigationProgress />
+              </Suspense>
               <StoreLayoutShell>{children}</StoreLayoutShell>
             </WishlistProvider>
           </CartProvider>

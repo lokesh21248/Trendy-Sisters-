@@ -6,8 +6,8 @@ import { OccasionSection } from "@/components/home/OccasionSection"
 import { WhyUsSection } from "@/components/home/WhyUsSection"
 import Link from "next/link"
 
-export const dynamic = "force-dynamic"
-export const revalidate = 0
+// ISR: revalidate every 30 seconds — home page served from CDN cache, rebuilt in background
+export const revalidate = 30
 
 export default function HomePage() {
   return (

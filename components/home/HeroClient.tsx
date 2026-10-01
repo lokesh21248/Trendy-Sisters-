@@ -1,0 +1,166 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { getSafeImageUrl, DEFAULT_BANNER_IMAGE } from "@/lib/image-utils"
+
+interface Banner {
+  id: string
+  title: string
+  subtitle?: string
+  image_url: string
+  link_url?: string
+}
+
+export default function HeroClient({ banners }: { banners: Banner[] }) {
+  const [current, setCurrent] = useState(0)
+
+  const prev = useCallback(
+    () => setCurrent((c) => (c - 1 + banners.length) % banners.length),
+    [banners.length]
+  )
+  const next = useCallback(
+    () => setCurrent((c) => (c + 1) % banners.length),
+    [banners.length]
+  )
+
+  // Auto-advance
+  useEffect(() => {
+    if (banners.length <= 1) return
+    const timer = setInterval(next, 5000)
+    return () => clearInterval(timer)
+  }, [banners.length, next])
+
+  const banner = banners[current]
+
+  return (
+    <section className="w-full px-3 sm:px-4 lg:px-6 pt-3 pb-1 max-w-7xl mx-auto">
+      <div className="relative overflow-hidden rounded-2xl aspect-[4/3] sm:aspect-[16/9] md:aspect-[2.2/1]">
+        {/* Preload all banner images for instant slide switching */}
+        {banners.map((b, i) => (
+          <Image
+            key={b.id}
+            src={getSafeImageUrl(b.image_url, DEFAULT_BANNER_IMAGE)}
+            alt={b.title}
+            fill
+            className={`object-cover transition-opacity duration-700 ${
+              i === current ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+            priority={i === 0}
+            sizes="(max-width: 768px) 100vw, (max-width: 1400px) 90vw, 1400px"
+          />
+        ))}
+
+        {/* Gradient overlay */}
+        <div
+          className="absolute inset-0 z-10"
+          style={{
+            background:
+              "linear-gradient(to right, rgba(37,32,29,0.88) 0%, rgba(37,32,29,0.5) 55%, rgba(37,32,29,0.1) 100%)",
+          }}
+        />
+
+        {/* Content */}
+        <div className="absolute inset-0 z-20 flex items-center px-5 sm:px-8 lg:px-16">
+          <div className="w-full max-w-sm animate-fade-in" key={current}>
+            {/* Tag */}
+            <div
+              className="inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold mb-2 sm:mb-3"
+              style={{ backgroundColor: "var(--gold)", color: "white" }}
+            >
+              ✦ New Collection
+            </div>
+
+            <h1
+              className="font-serif font-bold text-white leading-tight mb-2"
+              style={{ fontSize: "clamp(1.3rem, 5vw, 3rem)" }}
+            >
+              {banner.title}
+            </h1>
+
+            {banner.subtitle && (
+              <p
+                className="text-white/80 mb-4 max-w-xs"
+                style={{ fontSize: "clamp(0.75rem, 2.5vw, 1rem)" }}
+              >
+                {banner.subtitle}
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={banner.link_url || "/shop"}
+                className="px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl font-semibold transition-all hover:scale-105 hover:shadow-lg"
+                style={{
+                  backgroundColor: "var(--gold)",
+                  color: "white",
+                  fontSize: "clamp(0.75rem, 2.5vw, 0.875rem)",
+                }}
+                prefetch={true}
+              >
+                Shop Sarees
+              </Link>
+              <Link
+                href="/collections"
+                className="px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl font-semibold transition-all hover:scale-105"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.15)",
+                  color: "white",
+                  border: "1px solid rgba(255,255,255,0.4)",
+                  backdropFilter: "blur(8px)",
+                  fontSize: "clamp(0.75rem, 2.5vw, 0.875rem)",
+                }}
+                prefetch={true}
+              >
+                Collections
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Nav arrows */}
+        {banners.length > 1 && (
+          <>
+            <button
+              onClick={prev}
+              className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full items-center justify-center transition-all hover:scale-110"
+              style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "white", backdropFilter: "blur(8px)" }}
+              aria-label="Previous slide"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={next}
+              className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full items-center justify-center transition-all hover:scale-110"
+              style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "white", backdropFilter: "blur(8px)" }}
+              aria-label="Next slide"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </>
+        )}
+
+        {/* Dot indicators */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex gap-1.5">
+          {banners.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrent(i)}
+              className="transition-all duration-300"
+              aria-label={`Go to slide ${i + 1}`}
+              style={{
+                width: i === current ? 20 : 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor:
+                  i === current ? "var(--gold)" : "rgba(255,255,255,0.5)",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}

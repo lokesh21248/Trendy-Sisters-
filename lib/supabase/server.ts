@@ -15,8 +15,12 @@ export function createStaticClient() {
       autoRefreshToken: false,
     },
     global: {
+      // Cache Supabase responses for 30s (ISR-compatible) — dramatically reduces DB round-trips
       fetch: (url, options = {}) =>
-        fetch(url, { ...options, cache: "no-store" }),
+        fetch(url, {
+          ...options,
+          next: { revalidate: 30 },
+        }),
     },
   })
 }
