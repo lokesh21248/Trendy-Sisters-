@@ -44,6 +44,8 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false)
   const [orderId, setOrderId] = useState<string>("")
   const [placedOrder, setPlacedOrder] = useState<AdminOrder | null>(null)
+  // Capture the final total BEFORE cart is cleared, so the success screen always shows the correct amount
+  const [confirmedTotal, setConfirmedTotal] = useState<number>(0)
 
   useEffect(() => {
     if (isLoaded && !userId && step !== "success") {
@@ -315,7 +317,11 @@ export default function CheckoutPage() {
         }
       }
 
-      // 3. Clear cart & clear session coupon
+      // 3. Capture the total BEFORE clearing cart (cart total becomes 0 after clearCart)
+      const totalToConfirm = Number(finalAdminOrder.total) > 0
+        ? Number(finalAdminOrder.total)
+        : finalTotal
+      setConfirmedTotal(totalToConfirm)
       setOrderId(finalAdminOrder.order_number)
       setPlacedOrder(finalAdminOrder)
       try {
@@ -399,17 +405,25 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* COD Instruction Banner */}
+            {/* COD Instruction Banner — Prominent badge with actual amount */}
             {isCOD && (
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
-                <AlertCircle size={16} className="text-amber-700 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="block font-semibold mb-0.5">Pay on Arrival</strong>
-                  Please keep exact cash of{" "}
-                  <span className="font-bold text-[#651F35]">
-                    {formatPrice(placedOrder?.total || finalTotal)}
-                  </span>{" "}
-                  ready to hand over to the courier executive upon delivery.
+              <div className="rounded-xl border-2 border-amber-300 bg-amber-50 overflow-hidden">
+                <div className="flex items-center gap-2 px-3.5 py-2 bg-amber-400/20 border-b border-amber-300">
+                  <Banknote size={16} className="text-amber-700 shrink-0" />
+                  <span className="font-bold text-amber-900 text-xs uppercase tracking-wider">Cash on Delivery</span>
+                  <span className="ml-auto inline-block px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold uppercase">
+                    COD Confirmed
+                  </span>
+                </div>
+                <div className="p-3.5 text-xs text-amber-900 space-y-1">
+                  <p className="font-semibold">✅ You have booked Cash on Delivery</p>
+                  <p>
+                    Please keep{" "}
+                    <span className="font-bold text-[#651F35] text-sm">
+                      {formatPrice(confirmedTotal > 0 ? confirmedTotal : (placedOrder?.total ?? 0))}
+                    </span>{" "}
+                    ready to pay at the time of delivery.
+                  </p>
                 </div>
               </div>
             )}
@@ -475,16 +489,25 @@ export default function CheckoutPage() {
                     </div>
                   ))}
                 </div>
-
-                {/* Total Summary */}
-                <div className="mt-3.5 pt-3 border-t border-dashed border-[var(--border)] flex justify-between items-center text-sm">
-                  <span className="font-medium text-[#6B5E51]">Total Amount</span>
-                  <span className="font-bold text-base text-[var(--burgundy)]">
-                    {formatPrice(placedOrder?.total || finalTotal)}
-                  </span>
-                </div>
               </div>
             )}
+
+            {/* Total Amount — Always shown, outside items block so it never gets hidden */}
+            <div className="pt-3.5 border-t border-dashed border-[var(--border)]">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="font-semibold text-[#6B5E51] text-sm block">Total Amount</span>
+                  {isCOD && (
+                    <span className="text-[11px] text-amber-700 font-medium">
+                      Pay at the time of delivery • Cash on Delivery
+                    </span>
+                  )}
+                </div>
+                <span className="font-bold text-lg text-[var(--burgundy)]">
+                  {formatPrice(confirmedTotal > 0 ? confirmedTotal : (placedOrder?.total ?? 0))}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Customer Action CTAs - Replaces all admin navigation */}
