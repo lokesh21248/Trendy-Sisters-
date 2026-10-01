@@ -56,31 +56,44 @@ export default function SignupPage() {
         }
       }
 
-      // Store phone in unsafeMetadata instead of passing as top-level phoneNumber
-      // This prevents Clerk from rejecting the request when Phone Number auth is disabled in Clerk Dashboard
-      const createParams: any = {
-        emailAddress: form.email.trim(),
-        password: form.password,
-        firstName,
-        lastName,
-        unsafeMetadata: {
-          phone: rawPhone || undefined,
-          fullName: form.fullName.trim(),
-        },
-      }
-
+      // Store user information safely in metadata and try with name fields first;
+      // if first_name / last_name is disabled in Clerk Dashboard, gracefully retry without top-level names.
       let result: any
       try {
-        result = await signUp.create(createParams)
-      } catch (createErr: any) {
-        console.warn("Retrying signup with basic params due to:", createErr)
-        // If unsafeMetadata is rejected for any reason, retry with basic fields
         result = await signUp.create({
           emailAddress: form.email.trim(),
           password: form.password,
           firstName,
           lastName,
+          unsafeMetadata: {
+            phone: rawPhone || undefined,
+            fullName: form.fullName.trim(),
+            firstName,
+            lastName,
+          },
         })
+      } catch (createErr: any) {
+        console.warn("Primary signup.create failed (first_name/last_name may be disabled in Clerk Dashboard):", createErr)
+        try {
+          // Retry without top-level firstName and lastName
+          result = await signUp.create({
+            emailAddress: form.email.trim(),
+            password: form.password,
+            unsafeMetadata: {
+              phone: rawPhone || undefined,
+              fullName: form.fullName.trim(),
+              firstName,
+              lastName,
+            },
+          })
+        } catch (retryErr: any) {
+          console.warn("Secondary signup.create failed, falling back to minimal parameters:", retryErr)
+          // Ultimate fallback with just email and password
+          result = await signUp.create({
+            emailAddress: form.email.trim(),
+            password: form.password,
+          })
+        }
       }
 
       if (result && "error" in result && result.error) throw result.error

@@ -14,9 +14,13 @@ export default async function AccountPage() {
   }
 
   const user = await currentUser()
+  const metaFullName =
+    (user?.unsafeMetadata?.fullName as string) ||
+    (user?.unsafeMetadata?.firstName as string) ||
+    ""
   const displayName = user?.firstName
     ? `${user.firstName} ${user.lastName || ""}`.trim()
-    : user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] || "Shopper"
+    : metaFullName || user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] || "Shopper"
   const email = user?.emailAddresses?.[0]?.emailAddress || ""
   const avatarUrl = user?.imageUrl
 

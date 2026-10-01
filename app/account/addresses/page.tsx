@@ -87,7 +87,8 @@ export default function AddressesPage() {
   // Pre-fill user data when opening form
   useEffect(() => {
     if (user && !fullName) {
-      const name = `${user.firstName || ""} ${user.lastName || ""}`.trim()
+      const metaName = (user.unsafeMetadata?.fullName as string) || ""
+      const name = `${user.firstName || ""} ${user.lastName || ""}`.trim() || metaName
       if (name) setFullName(name)
       const userPhone = user.primaryPhoneNumber?.phoneNumber || (user.unsafeMetadata?.phone as string) || ""
       if (userPhone) {
@@ -142,7 +143,8 @@ export default function AddressesPage() {
   }
 
   function resetForm() {
-    setFullName(user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "")
+    const metaName = (user?.unsafeMetadata?.fullName as string) || ""
+    setFullName(user ? (`${user.firstName || ""} ${user.lastName || ""}`.trim() || metaName) : "")
     const userPhone = user?.primaryPhoneNumber?.phoneNumber || (user?.unsafeMetadata?.phone as string) || ""
     setPhone(userPhone.replace(/^\+91/, "") || "")
     setHouseFlat("")

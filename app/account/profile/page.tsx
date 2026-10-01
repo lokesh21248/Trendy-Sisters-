@@ -39,8 +39,18 @@ export default function ProfilePage() {
   // Populate form from Clerk user & local storage / Supabase
   useEffect(() => {
     if (user) {
-      setFirstName(user.firstName || "")
-      setLastName(user.lastName || "")
+      const initialFn =
+        user.firstName ||
+        (user.unsafeMetadata?.firstName as string) ||
+        (user.unsafeMetadata?.fullName as string)?.split(" ")[0] ||
+        ""
+      const initialLn =
+        user.lastName ||
+        (user.unsafeMetadata?.lastName as string) ||
+        (user.unsafeMetadata?.fullName as string)?.split(" ").slice(1).join(" ") ||
+        ""
+      setFirstName(initialFn)
+      setLastName(initialLn)
 
       // Phone from Clerk or metadata
       const userPhone =
@@ -129,18 +139,38 @@ export default function ProfilePage() {
     setMessage(null)
 
     try {
-      // 1. Update Clerk user profile & metadata
-      await user.update({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        unsafeMetadata: {
-          ...user.unsafeMetadata,
-          phone: phone.trim() ? `+91${phone.trim().replace(/^\+91/, "")}` : "",
-          gender,
-          dob,
-          altPhone: altPhone.trim(),
-        },
-      })
+      // 1. Update Clerk user profile & metadata (with fallback if name parameters are disabled in Clerk Dashboard)
+      try {
+        await user.update({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          unsafeMetadata: {
+            ...user.unsafeMetadata,
+            fullName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            phone: phone.trim() ? `+91${phone.trim().replace(/^\+91/, "")}` : "",
+            gender,
+            dob,
+            altPhone: altPhone.trim(),
+          },
+        })
+      } catch (clerkErr: any) {
+        console.warn("Clerk user.update with name fields failed, retrying with metadata only:", clerkErr)
+        // If first_name / last_name is disabled in Clerk Dashboard, update unsafeMetadata only
+        await user.update({
+          unsafeMetadata: {
+            ...user.unsafeMetadata,
+            fullName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            phone: phone.trim() ? `+91${phone.trim().replace(/^\+91/, "")}` : "",
+            gender,
+            dob,
+            altPhone: altPhone.trim(),
+          },
+        })
+      }
 
       // 2. Save extended profile details (phone, gender, dob, altPhone) locally & to Supabase
       const extendedData = {

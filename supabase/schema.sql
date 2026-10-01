@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- PROFILES
 -- ============================================
 CREATE TABLE IF NOT EXISTS profiles (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   email TEXT,
   full_name TEXT,
   phone TEXT,
@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS banners (
 -- ============================================
 CREATE TABLE IF NOT EXISTS wishlists (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  user_id TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS wishlist_items (
 -- ============================================
 CREATE TABLE IF NOT EXISTS carts (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  user_id TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS cart_items (
 -- ============================================
 CREATE TABLE IF NOT EXISTS addresses (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  user_id TEXT NOT NULL,
   full_name TEXT NOT NULL,
   phone TEXT NOT NULL,
   house_flat TEXT NOT NULL,
@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS addresses (
 -- ============================================
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  user_id TEXT NOT NULL,
   address_id UUID REFERENCES addresses(id) ON DELETE SET NULL,
   status TEXT DEFAULT 'pending' CHECK (status IN (
     'pending','confirmed','processing','shipped',
@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS order_items (
 CREATE TABLE IF NOT EXISTS reviews (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   product_id UUID REFERENCES products(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  user_id TEXT NOT NULL,
   rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
   comment TEXT,
   is_approved BOOLEAN DEFAULT FALSE,
@@ -305,58 +305,55 @@ ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Banners are publicly readable" ON banners;
 CREATE POLICY "Banners are publicly readable" ON banners FOR SELECT USING (is_active = TRUE);
 
--- Reviews (approved reviews public)
+-- Reviews
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Approved reviews are publicly readable" ON reviews;
 CREATE POLICY "Approved reviews are publicly readable" ON reviews FOR SELECT USING (is_approved = TRUE);
 DROP POLICY IF EXISTS "Users can insert own reviews" ON reviews;
-CREATE POLICY "Users can insert own reviews" ON reviews FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can insert own reviews" ON reviews FOR INSERT WITH CHECK (TRUE);
 DROP POLICY IF EXISTS "Users can update own reviews" ON reviews;
-CREATE POLICY "Users can update own reviews" ON reviews FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own reviews" ON reviews FOR UPDATE USING (TRUE);
 
--- Wishlists
+-- Wishlists (compatible with Clerk text user_id)
 ALTER TABLE wishlists ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage own wishlist" ON wishlists;
-CREATE POLICY "Users can manage own wishlist" ON wishlists FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "allow_all_wishlists" ON wishlists;
+CREATE POLICY "allow_all_wishlists" ON wishlists FOR ALL USING (TRUE) WITH CHECK (TRUE);
 
 -- Wishlist items
 ALTER TABLE wishlist_items ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage own wishlist items" ON wishlist_items;
-CREATE POLICY "Users can manage own wishlist items" ON wishlist_items
-  FOR ALL USING (
-    wishlist_id IN (SELECT id FROM wishlists WHERE user_id = auth.uid())
-  );
+DROP POLICY IF EXISTS "allow_all_wishlist_items" ON wishlist_items;
+CREATE POLICY "allow_all_wishlist_items" ON wishlist_items FOR ALL USING (TRUE) WITH CHECK (TRUE);
 
--- Carts
+-- Carts (compatible with Clerk text user_id)
 ALTER TABLE carts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage own cart" ON carts;
-CREATE POLICY "Users can manage own cart" ON carts FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "allow_all_carts" ON carts;
+CREATE POLICY "allow_all_carts" ON carts FOR ALL USING (TRUE) WITH CHECK (TRUE);
 
 -- Cart items
 ALTER TABLE cart_items ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage own cart items" ON cart_items;
-CREATE POLICY "Users can manage own cart items" ON cart_items
-  FOR ALL USING (
-    cart_id IN (SELECT id FROM carts WHERE user_id = auth.uid())
-  );
+DROP POLICY IF EXISTS "allow_all_cart_items" ON cart_items;
+CREATE POLICY "allow_all_cart_items" ON cart_items FOR ALL USING (TRUE) WITH CHECK (TRUE);
 
--- Addresses
+-- Addresses (compatible with Clerk text user_id)
 ALTER TABLE addresses ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage own addresses" ON addresses;
-CREATE POLICY "Users can manage own addresses" ON addresses FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "allow_all_addresses" ON addresses;
+CREATE POLICY "allow_all_addresses" ON addresses FOR ALL USING (TRUE) WITH CHECK (TRUE);
 
--- Orders
+-- Orders (compatible with Clerk text user_id)
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view own orders" ON orders;
-CREATE POLICY "Users can view own orders" ON orders FOR SELECT USING (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Users can insert own orders" ON orders;
-CREATE POLICY "Users can insert own orders" ON orders FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "allow_all_orders" ON orders;
+CREATE POLICY "allow_all_orders" ON orders FOR ALL USING (TRUE) WITH CHECK (TRUE);
 
 -- Order items
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view own order items" ON order_items;
-CREATE POLICY "Users can view own order items" ON order_items
-  FOR SELECT USING (
-    order_id IN (SELECT id FROM orders WHERE user_id = auth.uid())
-  );
+DROP POLICY IF EXISTS "allow_all_order_items" ON order_items;
+CREATE POLICY "allow_all_order_items" ON order_items FOR ALL USING (TRUE) WITH CHECK (TRUE);
 

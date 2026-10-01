@@ -89,10 +89,21 @@ export default function CheckoutPage() {
         phoneFromStorage ||
         ""
 
+      const userFirstName =
+        user.firstName ||
+        (user.unsafeMetadata?.firstName as string) ||
+        (user.unsafeMetadata?.fullName as string)?.split(" ")[0] ||
+        ""
+      const userLastName =
+        user.lastName ||
+        (user.unsafeMetadata?.lastName as string) ||
+        (user.unsafeMetadata?.fullName as string)?.split(" ").slice(1).join(" ") ||
+        ""
+
       setShippingForm((prev) => ({
         ...prev,
-        firstName: prev.firstName || user.firstName || "",
-        lastName: prev.lastName || user.lastName || "",
+        firstName: prev.firstName || userFirstName,
+        lastName: prev.lastName || userLastName,
         email:
           prev.email ||
           user.primaryEmailAddress?.emailAddress ||
