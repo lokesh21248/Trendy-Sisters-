@@ -68,9 +68,7 @@ export default function CheckoutPage() {
   })
 
   // Payment Method State
-  const [paymentMethod, setPaymentMethod] = useState<
-    "Cash on Delivery" | "UPI" | "Card" | "Net Banking"
-  >("Cash on Delivery")
+  const [paymentMethod, setPaymentMethod] = useState<"Cash on Delivery">("Cash on Delivery")
 
   // Applied Coupon from /cart
   const [appliedCoupon, setAppliedCoupon] = useState<{
@@ -812,89 +810,9 @@ export default function CheckoutPage() {
                         Pay with cash or UPI directly to our delivery courier when your saree package arrives.
                       </p>
                     </div>
-                  </label>
-
-                  {/* Option 2: UPI */}
-                  <label
-                    onClick={() => setPaymentMethod("UPI")}
-                    className={`flex items-start gap-3.5 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                      paymentMethod === "UPI"
-                        ? "border-[var(--burgundy)] bg-[#651F35]/5 shadow-sm"
-                        : "border-[var(--border)] hover:bg-ivory"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={paymentMethod === "UPI"}
-                      onChange={() => setPaymentMethod("UPI")}
-                      className="w-4 h-4 text-burgundy focus:ring-burgundy mt-1"
-                    />
-                    <div className="flex-1">
-                      <span className="font-bold text-sm text-charcoal flex items-center gap-1.5">
-                        <Smartphone size={18} className="text-[#B88A3B]" />
-                        UPI (Google Pay, PhonePe, Paytm, BHIM)
-                      </span>
-                      <p className="text-xs text-[#9B8A7A] mt-1">
-                        Instant payment via UPI QR code or VPA ID.
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Option 3: Cards */}
-                  <label
-                    onClick={() => setPaymentMethod("Card")}
-                    className={`flex items-start gap-3.5 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                      paymentMethod === "Card"
-                        ? "border-[var(--burgundy)] bg-[#651F35]/5 shadow-sm"
-                        : "border-[var(--border)] hover:bg-ivory"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={paymentMethod === "Card"}
-                      onChange={() => setPaymentMethod("Card")}
-                      className="w-4 h-4 text-burgundy focus:ring-burgundy mt-1"
-                    />
-                    <div className="flex-1">
-                      <span className="font-bold text-sm text-charcoal flex items-center gap-1.5">
-                        <CreditCard size={18} className="text-[#651F35]" />
-                        Credit / Debit Card (Visa, Mastercard, RuPay)
-                      </span>
-                      <p className="text-xs text-[#9B8A7A] mt-1">
-                        Secured 256-bit SSL encrypted card transaction.
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Option 4: Net Banking */}
-                  <label
-                    onClick={() => setPaymentMethod("Net Banking")}
-                    className={`flex items-start gap-3.5 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                      paymentMethod === "Net Banking"
-                        ? "border-[var(--burgundy)] bg-[#651F35]/5 shadow-sm"
-                        : "border-[var(--border)] hover:bg-ivory"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={paymentMethod === "Net Banking"}
-                      onChange={() => setPaymentMethod("Net Banking")}
-                      className="w-4 h-4 text-burgundy focus:ring-burgundy mt-1"
-                    />
-                    <div className="flex-1">
-                      <span className="font-bold text-sm text-charcoal flex items-center gap-1.5">
-                        <Building size={18} className="text-[#6B5E51]" />
-                        Net Banking (All Major Indian Banks)
-                      </span>
-                      <p className="text-xs text-[#9B8A7A] mt-1">
-                        HDFC, ICICI, SBI, Axis, Kotak, and 50+ banks.
-                      </p>
-                    </div>
-                  </label>
                 </div>
+
+                {/* Only Cash on Delivery is accepted */}
 
                 {/* Delivery Address Preview */}
                 <div className="bg-[var(--ivory)] rounded-2xl p-4 border border-[var(--border)] mb-6 text-xs text-[#25201D]">
