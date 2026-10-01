@@ -1,17 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight, KeyRound, Phone } from "lucide-react"
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight, KeyRound, Phone, RefreshCw } from "lucide-react"
 import { useSignUp, useClerk } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { useRouter, useSearchParams } from "next/navigation"
 
-export default function SignupPage() {
+function SignupForm() {
   const { signUp } = useSignUp()
   const clerk = useClerk()
   const isLoaded = clerk.loaded
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const rawRedirect = searchParams?.get("redirect_url") || "/account"
+  // Never redirect regular customer signup to admin portal
+  const targetRedirect = rawRedirect.startsWith("/admin") ? "/account" : rawRedirect
+
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -25,12 +30,15 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [codeSent, setCodeSent] = useState(false)
-  const router = useRouter()
+  const [resending, setResending] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const [resendNotice, setResendNotice] = useState("")
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!signUp || !isLoaded) return
     setError("")
+    setResendNotice("")
 
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match")
@@ -42,6 +50,7 @@ export default function SignupPage() {
     }
 
     setLoading(true)
+    console.log("[AUTH] Signup started")
 
     try {
       const parts = form.fullName.trim().split(" ")
@@ -97,8 +106,10 @@ export default function SignupPage() {
       }
 
       if (result && "error" in result && result.error) throw result.error
+      console.log("[AUTH] Account created")
 
       // Send verification code supporting both future API and standard API
+      console.log("[AUTH] Email verification started")
       if ((signUp as any).verifications?.sendEmailCode) {
         const sendResult = await (signUp as any).verifications.sendEmailCode()
         if (sendResult?.error) throw sendResult.error
@@ -127,6 +138,7 @@ export default function SignupPage() {
     if (!signUp || !isLoaded) return
     setVerifying(true)
     setError("")
+    setResendNotice("")
 
     try {
       let verifyResult: any = null
@@ -143,10 +155,11 @@ export default function SignupPage() {
 
       const status = verifyResult?.status || signUp.status
       if (status === "complete") {
+        console.log("[AUTH] Email verified")
         const sessionId = (verifyResult as any)?.createdSessionId || (signUp as any)?.createdSessionId
         const userId = (verifyResult as any)?.createdUserId || (signUp as any)?.createdUserId
 
-        // Save phone and profile details to Supabase & localStorage so user has their data immediately
+        // Save phone and profile details to localStorage cache
         if (userId) {
           try {
             let rawPhone = form.phone.trim().replace(/\s+/g, "")
@@ -167,14 +180,17 @@ export default function SignupPage() {
           }
         }
 
+        // Activate session
         if (clerk && sessionId) {
           await clerk.setActive({ session: sessionId })
+          console.log("[AUTH] Session activated")
         } else if (typeof (signUp as any).finalize === "function") {
           const fin = await (signUp as any).finalize()
           if (fin?.error) throw fin.error
+          console.log("[AUTH] Session activated")
         }
 
-        // Sync profile via server API after active session
+        // Sync/create application profile immediately using Clerk user ID
         try {
           await fetch("/api/profile/sync", {
             method: "POST",
@@ -185,16 +201,19 @@ export default function SignupPage() {
               email: form.email.trim(),
             }),
           })
+          console.log("[AUTH] Profile created")
         } catch (apiErr) {
-          console.warn("Profile sync API notice:", apiErr)
+          console.warn("[AUTH] Profile sync notice:", apiErr)
         }
 
-        router.push("/account")
+        console.log(`[AUTH] Redirecting to customer website: ${targetRedirect}`)
+        router.push(targetRedirect)
         router.refresh()
       } else {
         setError("Verification incomplete. Please check your code.")
       }
     } catch (err: any) {
+      console.error("Clerk Email Verification Error:", err)
       const firstErr = Array.isArray(err.errors) && err.errors.length > 0 ? err.errors[0] : null
       const msg =
         firstErr?.longMessage ||
@@ -205,6 +224,38 @@ export default function SignupPage() {
       setError(msg)
     } finally {
       setVerifying(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    if (!signUp || resending || resendCooldown > 0) return
+    setResending(true)
+    setError("")
+    setResendNotice("")
+
+    try {
+      if ((signUp as any).verifications?.sendEmailCode) {
+        const sendResult = await (signUp as any).verifications.sendEmailCode()
+        if (sendResult?.error) throw sendResult.error
+      } else if (typeof (signUp as any).prepareEmailAddressVerification === "function") {
+        await (signUp as any).prepareEmailAddressVerification({ strategy: "email_code" })
+      }
+      setResendNotice("A new verification code has been sent to your email.")
+      setResendCooldown(30)
+      const timer = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (err: any) {
+      console.error("Resend verification code error:", err)
+      setError("Failed to resend verification code. Please try again.")
+    } finally {
+      setResending(false)
     }
   }
 
@@ -223,10 +274,10 @@ export default function SignupPage() {
               <Mail size={32} style={{ color: "var(--burgundy)" }} />
             </div>
             <h2 className="font-serif text-2xl font-bold mb-2" style={{ color: "var(--charcoal)" }}>
-              Check your email
+              Verify your email
             </h2>
             <p className="text-sm" style={{ color: "#9B8A7A" }}>
-              We sent a 6-digit verification code to <strong>{form.email}</strong>
+              We sent a verification code to <strong>{form.email}</strong>
             </p>
           </div>
 
@@ -247,10 +298,23 @@ export default function SignupPage() {
               </div>
             )}
 
+            {resendNotice && (
+              <div
+                className="mb-4 p-3 rounded-xl text-sm font-medium"
+                style={{
+                  backgroundColor: "rgba(16,185,129,0.08)",
+                  color: "#059669",
+                  border: "1px solid rgba(16,185,129,0.2)",
+                }}
+              >
+                {resendNotice}
+              </div>
+            )}
+
             <form onSubmit={handleVerifyCode} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--charcoal)" }}>
-                  6-Digit Verification Code
+                  Enter code
                 </label>
                 <div className="relative">
                   <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#9B8A7A" }} />
@@ -269,17 +333,30 @@ export default function SignupPage() {
 
               <button
                 type="submit"
-                disabled={verifying}
+                disabled={verifying || !verificationCode.trim()}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all shadow-md hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 cursor-pointer"
                 style={{ backgroundColor: "var(--burgundy)" }}
               >
                 {verifying ? (
                   <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <>Verify & Continue <ArrowRight size={16} /></>
+                  <>Verify Email <ArrowRight size={16} /></>
                 )}
               </button>
             </form>
+
+            <div className="mt-6 flex flex-col items-center gap-3">
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={resending || resendCooldown > 0}
+                className="text-xs font-semibold flex items-center gap-1.5 hover:underline disabled:opacity-50 cursor-pointer"
+                style={{ color: "var(--burgundy)" }}
+              >
+                <RefreshCw size={13} className={resending ? "animate-spin" : ""} />
+                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -474,5 +551,22 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{ backgroundColor: "var(--ivory)" }}
+        >
+          <div className="w-8 h-8 border-2 border-gray-300 border-t-amber-800 rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   )
 }

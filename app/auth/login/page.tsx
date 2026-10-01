@@ -69,6 +69,28 @@ function parseAuthError(err: any): string {
   return "Incorrect email or password."
 }
 
+function isClientUserAdmin(user: any, emailStr?: string): boolean {
+  if (!user && !emailStr) return false
+  const publicRole = user?.publicMetadata?.role
+  const unsafeRole = user?.unsafeMetadata?.role
+  if (publicRole === "admin" || unsafeRole === "admin") return true
+
+  const adminEmails = [
+    "admin@trendysisters.com",
+    "anushabazaar4@gmail.com",
+    "shekharramireddy@gmail.com",
+    "ramireddylokeshreddy@gmail.com",
+  ]
+  const cleanEmail = (
+    emailStr ||
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.emailAddresses?.[0]?.emailAddress ||
+    ""
+  ).toLowerCase().trim()
+
+  return adminEmails.includes(cleanEmail)
+}
+
 function LoginForm() {
   const { signIn } = useSignIn()
   const clerk = useClerk()
@@ -79,12 +101,6 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [successNotice, setSuccessNotice] = useState("")
-  
-  // Verification states
-  const [needsVerification, setNeedsVerification] = useState(false)
-  const [verificationCode, setVerificationCode] = useState("")
-  const [resendingCode, setResendingCode] = useState(false)
-  const [resendCooldown, setResendCooldown] = useState(0)
 
   // Forgot password states
   const [isForgotPassword, setIsForgotPassword] = useState(false)
@@ -93,6 +109,8 @@ function LoginForm() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmNewPassword, setConfirmNewPassword] = useState("")
   const [showNewPass, setShowNewPass] = useState(false)
+  const [resendingResetCode, setResendingResetCode] = useState(false)
+  const [resendResetCooldown, setResendResetCooldown] = useState(0)
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -108,19 +126,18 @@ function LoginForm() {
   // Helper to safely check and sync user profile in database via server API
   const syncUserProfile = async (userId: string, userEmail: string) => {
     try {
-      console.log(`[LOGIN ATTEMPT] Profile sync in progress for user ID: ${userId}`)
+      console.log(`[AUTH] Profile loaded for user ID: ${userId}`)
       await fetch("/api/profile/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: userEmail }),
       })
-      console.log("[LOGIN ATTEMPT] Profile sync completed successfully")
     } catch (syncErr) {
-      console.warn("[LOGIN ATTEMPT] Profile sync notice:", syncErr)
+      console.warn("[AUTH] Profile sync notice:", syncErr)
     }
   }
 
-  // Handle Initial Login with Email & Password
+  // Handle Initial Login with Email & Password (DIRECT PASSWORD AUTH - NO OTP)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!signIn || !isLoaded) return
@@ -129,257 +146,127 @@ function LoginForm() {
     setSuccessNotice("")
 
     const cleanEmail = email.trim()
-    console.log(`[LOGIN ATTEMPT] Email received: ${cleanEmail}`)
+    console.log("[AUTH] Login started")
+    console.log("[AUTH] Password authentication started")
 
     try {
-      const result: any = await signIn.create({
-        identifier: cleanEmail,
-        password,
-      })
+      let result: any = null
+      let status: string | undefined = undefined
 
-      // Check for error in future API response object
+      try {
+        result = await (signIn as any).create({
+          identifier: cleanEmail,
+          password: password,
+        })
+      } catch (createErr: any) {
+        throw createErr
+      }
+
       if (result && "error" in result && result.error) {
         throw result.error
       }
 
-      const status = result?.status || signIn.status
-      console.log(`[LOGIN ATTEMPT] Authentication provider response: status=${status}`)
+      status = result?.status || (signIn as any).status
+      console.log(`[AUTH] Authentication result: status=${status}`)
 
-      if (status === "complete") {
-        console.log("[LOGIN ATTEMPT] Verification status: verified")
-        const userId = (result as any)?.createdUserId || (signIn as any)?.createdUserId || (clerk.user as any)?.id || "present"
-        console.log(`[LOGIN ATTEMPT] User ID: ${userId}`)
+      // If status is needs_first_factor, submit password using password factor (NEVER email_code!)
+      if (status === "needs_first_factor") {
+        const factors = result?.supportedFirstFactors || (signIn as any).supportedFirstFactors || []
+        const hasPasswordFactor = factors.some((f: any) => f.strategy === "password")
 
-        // Safely check/sync user profile
-        if (userId && userId !== "present") {
-          await syncUserProfile(userId, cleanEmail)
+        if (hasPasswordFactor || !factors.length) {
+          if (typeof (signIn as any).password === "function") {
+            // Modern Clerk Future API
+            const passRes = await (signIn as any).password({ password })
+            if (passRes?.error) throw passRes.error
+            status = (signIn as any).status || passRes?.status
+          } else if (typeof (signIn as any).attemptFirstFactor === "function") {
+            // Standard Clerk API
+            const factorRes = await (signIn as any).attemptFirstFactor({
+              strategy: "password",
+              password,
+            })
+            if (factorRes?.error) throw factorRes.error
+            status = factorRes?.status || (signIn as any).status
+          } else if (
+            clerk &&
+            (clerk as any).client?.signIn &&
+            typeof ((clerk as any).client.signIn as any).attemptFirstFactor === "function"
+          ) {
+            // Fallback to clerk.client.signIn
+            const factorRes = await ((clerk as any).client.signIn as any).attemptFirstFactor({
+              strategy: "password",
+              password,
+            })
+            status = factorRes?.status || ((clerk as any).client.signIn as any).status
+          }
+          console.log(`[AUTH] Password factor authentication result: status=${status}`)
+        } else {
+          // The account has no password factor configured / requires email verification before login
+          setError("Please verify your email to continue. Please complete account verification or sign up.")
+          setLoading(false)
+          return
         }
+      }
 
-        // Establish session
-        const sessionId = result?.createdSessionId || (signIn as any).createdSessionId
-        console.log("[LOGIN ATTEMPT] Session creation: starting...")
+      // Check for completion
+      if (status === "complete") {
+        const userId =
+          result?.createdUserId ||
+          (signIn as any)?.createdUserId ||
+          (clerk as any)?.client?.signIn?.createdUserId ||
+          (clerk.user as any)?.id ||
+          "present"
+
+        // Activate session
+        const sessionId =
+          result?.createdSessionId ||
+          (signIn as any)?.createdSessionId ||
+          (clerk as any)?.client?.signIn?.createdSessionId
+
         if (clerk && sessionId) {
           await clerk.setActive({ session: sessionId })
+          console.log("[AUTH] Session activated")
         } else if (typeof (signIn as any).finalize === "function") {
           const fin = await (signIn as any).finalize()
           if (fin?.error) throw fin.error
+          console.log("[AUTH] Session activated")
         }
-        console.log("[LOGIN ATTEMPT] Session creation: success")
-        console.log(`[LOGIN ATTEMPT] Redirect: ${redirectUrl}`)
 
-        router.push(redirectUrl)
+        // Load / safely sync profile for this Clerk user ID
+        if (userId && userId !== "present") {
+          await syncUserProfile(userId, cleanEmail)
+          console.log("[AUTH] Profile loaded")
+        }
+
+        // Determine destination: Customers go to customer pages (/account, /shop, /), NEVER admin portal unless authorized
+        let targetDestination = redirectUrl
+        if (targetDestination.startsWith("/admin")) {
+          const isAdmin = isClientUserAdmin(clerk.user, cleanEmail)
+          if (!isAdmin) {
+            targetDestination = "/account"
+          }
+        }
+
+        console.log(`[AUTH] Redirecting to customer website: ${targetDestination}`)
+        router.push(targetDestination)
         router.refresh()
-        return
-      }
-
-      // Check if user requires email code verification
-      if (status === "needs_first_factor") {
-        console.log("[LOGIN ATTEMPT] Verification status: unverified (email code required)")
-        const factors = result?.supportedFirstFactors || signIn.supportedFirstFactors || []
-        const emailFactor = factors.find(
-          (f: any) => f.strategy === "email_code"
-        )
-
-        if (emailFactor) {
-          // Prepare / send the verification code
-          try {
-            if (typeof (signIn as any).prepareFirstFactor === "function") {
-              await (signIn as any).prepareFirstFactor({
-                strategy: "email_code",
-                emailAddressId: emailFactor.emailAddressId,
-              })
-            } else if ((signIn as any).emailCode?.sendCode) {
-              await (signIn as any).emailCode.sendCode({
-                emailAddressId: emailFactor.emailAddressId,
-              })
-            }
-          } catch (prepErr) {
-            console.warn("[LOGIN ATTEMPT] Code prepare notice:", prepErr)
-          }
-
-          setNeedsVerification(true)
-          setSuccessNotice(`A verification code was sent to ${cleanEmail}. Please enter it below.`)
-          return
-        }
-
-        // If another first factor is required
-        setError("Additional authentication required. Please check your verification method.")
-        return
-      }
-
-      if (status === "needs_second_factor" || status === "needs_client_trust") {
-        console.log(`[LOGIN ATTEMPT] Verification status: ${status} (device trust / 2FA required)`)
-        const secondFactors = result?.supportedSecondFactors || (signIn as any).supportedSecondFactors || []
-        const emailSecondFactor = secondFactors.find((f: any) => f.strategy === "email_code")
-
-        try {
-          if (emailSecondFactor || typeof (signIn as any).prepareSecondFactor === "function") {
-            await (signIn as any).prepareSecondFactor({
-              strategy: "email_code",
-            })
-          } else if ((signIn as any).mfa?.sendEmailCode) {
-            await (signIn as any).mfa.sendEmailCode()
-          }
-        } catch (prepErr) {
-          console.warn("[LOGIN ATTEMPT] Second factor code prepare notice:", prepErr)
-        }
-
-        setNeedsVerification(true)
-        setSuccessNotice(`For your device security, a verification code was sent to ${cleanEmail}. Please enter it below.`)
         return
       }
 
       if (status === "needs_new_password") {
-        setError("You need to reset your password before logging in.")
+        setError("You need to reset your password before logging in. Please click 'Forgot password?' below.")
         return
       }
 
-      // Fallback for unexpected status
-      setError("Authentication could not be completed. Please check your credentials or try again.")
+      // Fallback: If not completed with password, report incorrect credentials (NO OTP!)
+      setError("Incorrect email or password.")
     } catch (err: any) {
-      console.warn("[LOGIN ATTEMPT] Auth error:", err?.message || err)
+      console.warn("[AUTH] Authentication error:", err?.message || err)
       const userMessage = parseAuthError(err)
       setError(userMessage)
     } finally {
       setLoading(false)
-    }
-  }
-
-  // Handle Verification Code Submission
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!signIn) return
-    setLoading(true)
-    setError("")
-    setSuccessNotice("")
-
-    try {
-      console.log("[LOGIN ATTEMPT] Submitting verification code...")
-      let verifyResult: any = null
-
-      const currentStatus = (signIn as any).status
-      if (currentStatus === "needs_second_factor" || currentStatus === "needs_client_trust") {
-        if (typeof (signIn as any).attemptSecondFactor === "function") {
-          try {
-            verifyResult = await (signIn as any).attemptSecondFactor({
-              strategy: "email_code",
-              code: verificationCode.trim(),
-            })
-          } catch (mfaErr: any) {
-            console.warn("[LOGIN ATTEMPT] attemptSecondFactor error:", mfaErr)
-            if (mfaErr?.errors?.[0]?.code === "form_code_incorrect" || mfaErr?.code === "form_code_incorrect") {
-              throw mfaErr
-            }
-          }
-        }
-      }
-
-      if (!verifyResult) {
-        if (typeof (signIn as any).attemptFirstFactor === "function") {
-          verifyResult = await (signIn as any).attemptFirstFactor({
-            strategy: "email_code",
-            code: verificationCode.trim(),
-          })
-        } else if ((signIn as any).emailCode?.verifyCode) {
-          verifyResult = await (signIn as any).emailCode.verifyCode({
-            code: verificationCode.trim(),
-          })
-        }
-      }
-
-      if (verifyResult && "error" in verifyResult && verifyResult.error) {
-        throw verifyResult.error
-      }
-
-      const status = verifyResult?.status || signIn.status
-      console.log(`[LOGIN ATTEMPT] Verification response status: ${status}`)
-
-      if (status === "complete") {
-        console.log("[LOGIN ATTEMPT] Verification status: verified successfully")
-        const userId = (verifyResult as any)?.createdUserId || (signIn as any)?.createdUserId || (clerk.user as any)?.id || "present"
-        console.log(`[LOGIN ATTEMPT] User ID: ${userId}`)
-
-        if (userId && userId !== "present") {
-          await syncUserProfile(userId, email.trim())
-        }
-
-        const sessionId = (verifyResult as any)?.createdSessionId || (signIn as any)?.createdSessionId
-        console.log("[LOGIN ATTEMPT] Session creation: starting...")
-        if (clerk && sessionId) {
-          await clerk.setActive({ session: sessionId })
-        } else if (typeof (signIn as any).finalize === "function") {
-          const fin = await (signIn as any).finalize()
-          if (fin?.error) throw fin.error
-        }
-        console.log("[LOGIN ATTEMPT] Session creation: success")
-        console.log(`[LOGIN ATTEMPT] Redirect: ${redirectUrl}`)
-
-        router.push(redirectUrl)
-        router.refresh()
-      } else {
-        setError("Verification incomplete. Please check your code.")
-      }
-    } catch (err: any) {
-      console.error("[LOGIN ATTEMPT] Verification error:", err)
-      const code = err?.errors?.[0]?.code || err?.code || ""
-      if (code === "form_code_incorrect") {
-        setError("Invalid verification code. Please check your code and try again.")
-      } else {
-        setError(parseAuthError(err))
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Handle Resend Verification Code
-  const handleResendCode = async () => {
-    if (resendingCode || resendCooldown > 0 || !signIn) return
-    setResendingCode(true)
-    setError("")
-    setSuccessNotice("")
-
-    try {
-      const currentStatus = (signIn as any).status
-      if (currentStatus === "needs_second_factor" || currentStatus === "needs_client_trust") {
-        if (typeof (signIn as any).prepareSecondFactor === "function") {
-          await (signIn as any).prepareSecondFactor({
-            strategy: "email_code",
-          })
-        } else if ((signIn as any).mfa?.sendEmailCode) {
-          await (signIn as any).mfa.sendEmailCode()
-        }
-      } else {
-        const factors = signIn.supportedFirstFactors || []
-        const emailFactor: any = factors.find((f: any) => f.strategy === "email_code")
-
-        if (typeof (signIn as any).prepareFirstFactor === "function") {
-          await (signIn as any).prepareFirstFactor({
-            strategy: "email_code",
-            emailAddressId: emailFactor?.emailAddressId,
-          })
-        } else if ((signIn as any).emailCode?.sendCode) {
-          await (signIn as any).emailCode.sendCode({
-            emailAddressId: emailFactor?.emailAddressId,
-          })
-        }
-      }
-
-      setSuccessNotice("A new verification code has been sent to your email.")
-      setResendCooldown(30)
-      const timer = setInterval(() => {
-        setResendCooldown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    } catch (err: any) {
-      setError(parseAuthError(err))
-    } finally {
-      setResendingCode(false)
     }
   }
 
@@ -398,26 +285,79 @@ function LoginForm() {
     setSuccessNotice("")
 
     try {
-      try {
-        await (signIn as any).create({
-          strategy: "reset_password_email_code",
-          identifier: cleanEmail,
-        })
-      } catch (directErr: any) {
-        console.warn("Direct reset_password_email_code create failed, trying prepareFirstFactor:", directErr)
-        const res: any = await (signIn as any).create({
-          identifier: cleanEmail,
-        })
-        const factor = res.supportedFirstFactors?.find(
-          (ff: any) => ff.strategy === "reset_password_email_code"
-        )
-        if (factor && typeof (signIn as any).prepareFirstFactor === "function") {
-          await (signIn as any).prepareFirstFactor({
-            strategy: "reset_password_email_code",
-            emailAddressId: factor.emailAddressId,
+      let codeSent = false
+
+      // Future API: resetPasswordEmailCode.sendCode
+      if ((signIn as any).resetPasswordEmailCode?.sendCode) {
+        try {
+          const createRes = await (signIn as any).create({
+            identifier: cleanEmail,
           })
-        } else {
-          throw directErr
+          if (createRes?.error) {
+            if (createRes.error?.code === "form_identifier_not_found") {
+              throw createRes.error
+            }
+          }
+          const sendRes = await (signIn as any).resetPasswordEmailCode.sendCode()
+          if (sendRes?.error) {
+            throw sendRes.error
+          }
+          codeSent = true
+        } catch (futureErr: any) {
+          console.warn("Future resetPasswordEmailCode.sendCode attempt notice:", futureErr)
+          if (
+            futureErr?.code === "form_identifier_not_found" ||
+            futureErr?.errors?.[0]?.code === "form_identifier_not_found"
+          ) {
+            throw futureErr
+          }
+        }
+      }
+
+      // Classic / Legacy API & Fallback
+      if (!codeSent) {
+        try {
+          await (signIn as any).create({
+            strategy: "reset_password_email_code",
+            identifier: cleanEmail,
+          })
+          codeSent = true
+        } catch (directErr: any) {
+          console.warn("Direct reset_password_email_code create failed, trying alternatives:", directErr)
+
+          if (clerk && (clerk as any).client?.signIn) {
+            try {
+              await (clerk as any).client.signIn.create({
+                strategy: "reset_password_email_code",
+                identifier: cleanEmail,
+              })
+              codeSent = true
+            } catch (clientErr) {
+              console.warn("clerk.client.signIn create notice:", clientErr)
+            }
+          }
+
+          if (!codeSent) {
+            const res: any = await (signIn as any).create({
+              identifier: cleanEmail,
+            })
+            const factor = (res?.supportedFirstFactors || (signIn as any).supportedFirstFactors)?.find(
+              (ff: any) => ff.strategy === "reset_password_email_code"
+            )
+            if (factor && typeof (signIn as any).prepareFirstFactor === "function") {
+              await (signIn as any).prepareFirstFactor({
+                strategy: "reset_password_email_code",
+                emailAddressId: factor.emailAddressId,
+              })
+              codeSent = true
+            } else if ((signIn as any).resetPasswordEmailCode?.sendCode) {
+              const sendRes = await (signIn as any).resetPasswordEmailCode.sendCode()
+              if (sendRes?.error) throw sendRes.error
+              codeSent = true
+            } else {
+              throw directErr
+            }
+          }
         }
       }
 
@@ -454,24 +394,102 @@ function LoginForm() {
     setSuccessNotice("")
 
     try {
-      const result: any = await (signIn as any).attemptFirstFactor({
-        strategy: "reset_password_email_code",
-        code: resetCode.trim(),
-        password: newPassword,
-      })
+      let result: any = null
+      let status: string | undefined = undefined
+
+      // Path A: Modern Clerk Future API (Signals / v7+)
+      if ((signIn as any).resetPasswordEmailCode?.verifyCode && (signIn as any).resetPasswordEmailCode?.submitPassword) {
+        try {
+          const currentStatus = (signIn as any).status
+          if (currentStatus !== "needs_new_password") {
+            const verifyResult = await (signIn as any).resetPasswordEmailCode.verifyCode({
+              code: resetCode.trim(),
+            })
+            if (verifyResult?.error) {
+              throw verifyResult.error
+            }
+          }
+
+          const submitResult = await (signIn as any).resetPasswordEmailCode.submitPassword({
+            password: newPassword,
+          })
+          if (submitResult?.error) {
+            throw submitResult.error
+          }
+          result = submitResult
+          status = (signIn as any)?.status || submitResult?.status || "complete"
+        } catch (futureErr: any) {
+          // If Future API failed due to internal state mismatch, attempt classic fallback if available
+          const errCode = futureErr?.errors?.[0]?.code || futureErr?.code || ""
+          if (
+            errCode !== "form_code_incorrect" &&
+            errCode !== "form_password_length_too_short" &&
+            errCode !== "form_password_pwned" &&
+            errCode !== "form_password_validation_failed" &&
+            clerk &&
+            (clerk as any).client?.signIn &&
+            typeof ((clerk as any).client.signIn as any).attemptFirstFactor === "function"
+          ) {
+            console.warn("Future resetPasswordEmailCode fallback to clerk.client.signIn:", futureErr)
+            result = await ((clerk as any).client.signIn as any).attemptFirstFactor({
+              strategy: "reset_password_email_code",
+              code: resetCode.trim(),
+              password: newPassword,
+            })
+            status = result?.status || ((clerk as any).client.signIn as any)?.status
+          } else {
+            throw futureErr
+          }
+        }
+      } else if (typeof (signIn as any).attemptFirstFactor === "function") {
+        // Path B: Standard Clerk API on signIn
+        result = await (signIn as any).attemptFirstFactor({
+          strategy: "reset_password_email_code",
+          code: resetCode.trim(),
+          password: newPassword,
+        })
+        status = result?.status || (signIn as any)?.status
+      } else if (clerk && (clerk as any).client?.signIn && typeof ((clerk as any).client.signIn as any).attemptFirstFactor === "function") {
+        // Path C: clerk.client.signIn
+        result = await ((clerk as any).client.signIn as any).attemptFirstFactor({
+          strategy: "reset_password_email_code",
+          code: resetCode.trim(),
+          password: newPassword,
+        })
+        status = result?.status || ((clerk as any).client.signIn as any)?.status
+      } else if (typeof (signIn as any).resetPassword === "function") {
+        // Path D: resetPassword direct method
+        result = await (signIn as any).resetPassword({
+          password: newPassword,
+        })
+        status = result?.status || (signIn as any)?.status
+      } else {
+        throw new Error("Unable to reset password. Please request a new verification code.")
+      }
 
       if (result && "error" in result && result.error) {
         throw result.error
       }
 
-      const status = result?.status || signIn.status
+      status = status || result?.status || (signIn as any)?.status
+
       if (status === "complete") {
-        const userId = result?.createdUserId || (signIn as any)?.createdUserId || (clerk.user as any)?.id || "present"
+        const userId =
+          result?.createdUserId ||
+          (signIn as any)?.createdUserId ||
+          (clerk as any)?.client?.signIn?.createdUserId ||
+          (clerk.user as any)?.id ||
+          "present"
+
         if (userId && userId !== "present") {
           await syncUserProfile(userId, email.trim())
         }
 
-        const sessionId = result?.createdSessionId || (signIn as any)?.createdSessionId
+        const sessionId =
+          result?.createdSessionId ||
+          (signIn as any)?.createdSessionId ||
+          (clerk as any)?.client?.signIn?.createdSessionId
+
         if (clerk && sessionId) {
           await clerk.setActive({ session: sessionId })
         } else if (typeof (signIn as any).finalize === "function") {
@@ -488,6 +506,10 @@ function LoginForm() {
       const code = err?.errors?.[0]?.code || err?.code || ""
       if (code === "form_code_incorrect") {
         setError("Invalid verification code. Please check the code sent to your email.")
+      } else if (code === "form_password_length_too_short") {
+        setError("Password must be at least 8 characters long.")
+      } else if (code === "form_password_pwned") {
+        setError("This password has been compromised in an external data breach. Please choose a stronger password.")
       } else {
         setError(parseAuthError(err))
       }
@@ -498,32 +520,53 @@ function LoginForm() {
 
   // Handle Resend Reset Code
   const handleResendResetCode = async () => {
-    if (resendingCode || resendCooldown > 0 || !signIn) return
-    setResendingCode(true)
+    if (resendingResetCode || resendResetCooldown > 0 || !signIn) return
+    setResendingResetCode(true)
     setError("")
     setSuccessNotice("")
 
     try {
-      try {
-        await (signIn as any).create({
-          strategy: "reset_password_email_code",
-          identifier: email.trim(),
-        })
-      } catch (createErr: any) {
-        const factors = (signIn as any).supportedFirstFactors || []
-        const factor: any = factors.find((f: any) => f.strategy === "reset_password_email_code")
-        if (typeof (signIn as any).prepareFirstFactor === "function") {
-          await (signIn as any).prepareFirstFactor({
+      let resent = false
+      if ((signIn as any).resetPasswordEmailCode?.sendCode) {
+        try {
+          const res = await (signIn as any).resetPasswordEmailCode.sendCode()
+          if (res?.error) throw res.error
+          resent = true
+        } catch (futureErr) {
+          console.warn("Future resend reset code notice:", futureErr)
+        }
+      }
+
+      if (!resent) {
+        try {
+          await (signIn as any).create({
             strategy: "reset_password_email_code",
-            emailAddressId: factor?.emailAddressId,
+            identifier: email.trim(),
           })
+          resent = true
+        } catch (createErr: any) {
+          const factors = (signIn as any).supportedFirstFactors || []
+          const factor: any = factors.find((f: any) => f.strategy === "reset_password_email_code")
+          if (typeof (signIn as any).prepareFirstFactor === "function") {
+            await (signIn as any).prepareFirstFactor({
+              strategy: "reset_password_email_code",
+              emailAddressId: factor?.emailAddressId,
+            })
+            resent = true
+          } else if (clerk && (clerk as any).client?.signIn) {
+            await (clerk as any).client.signIn.create({
+              strategy: "reset_password_email_code",
+              identifier: email.trim(),
+            })
+            resent = true
+          }
         }
       }
 
       setSuccessNotice("A new reset code has been sent to your email.")
-      setResendCooldown(30)
+      setResendResetCooldown(30)
       const timer = setInterval(() => {
-        setResendCooldown((prev) => {
+        setResendResetCooldown((prev: number) => {
           if (prev <= 1) {
             clearInterval(timer)
             return 0
@@ -534,7 +577,7 @@ function LoginForm() {
     } catch (err: any) {
       setError(parseAuthError(err))
     } finally {
-      setResendingCode(false)
+      setResendingResetCode(false)
     }
   }
 
@@ -796,12 +839,12 @@ function LoginForm() {
               <button
                 type="button"
                 onClick={handleResendResetCode}
-                disabled={resendingCode || resendCooldown > 0}
+                disabled={resendingResetCode || resendResetCooldown > 0}
                 className="text-xs font-semibold flex items-center gap-1.5 hover:underline disabled:opacity-50 cursor-pointer"
                 style={{ color: "var(--burgundy)" }}
               >
-                <RefreshCw size={13} className={resendingCode ? "animate-spin" : ""} />
-                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend reset email"}
+                <RefreshCw size={13} className={resendingResetCode ? "animate-spin" : ""} />
+                {resendResetCooldown > 0 ? `Resend code in ${resendResetCooldown}s` : "Resend reset email"}
               </button>
 
               <button
@@ -813,128 +856,6 @@ function LoginForm() {
                   setSuccessNotice("")
                 }}
                 className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1 cursor-pointer font-medium"
-              >
-                <ArrowLeft size={13} /> Back to Sign In
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Verification Screen
-  if (needsVerification) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center px-4 py-16"
-        style={{ backgroundColor: "var(--ivory)" }}
-      >
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-2"
-              style={{
-                backgroundColor: "rgba(101,31,53,0.08)",
-                borderColor: "var(--gold)",
-              }}
-            >
-              <KeyRound size={28} style={{ color: "var(--burgundy)" }} />
-            </div>
-            <h1 className="font-serif text-2xl font-bold mb-1" style={{ color: "var(--charcoal)" }}>
-              Verify your email
-            </h1>
-            <p className="text-sm" style={{ color: "#9B8A7A" }}>
-              Please verify your email before signing in to <strong>{email}</strong>
-            </p>
-          </div>
-
-          <div
-            className="p-8 rounded-3xl bg-white"
-            style={{ border: "1px solid var(--border)", boxShadow: "0 4px 24px var(--shadow)" }}
-          >
-            {error && (
-              <div
-                className="mb-4 p-3 rounded-xl text-sm font-medium"
-                style={{
-                  backgroundColor: "rgba(220,38,38,0.08)",
-                  color: "#DC2626",
-                  border: "1px solid rgba(220,38,38,0.2)",
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            {successNotice && (
-              <div
-                className="mb-4 p-3 rounded-xl text-sm font-medium flex items-center gap-2"
-                style={{
-                  backgroundColor: "rgba(22,101,52,0.08)",
-                  color: "#166534",
-                  border: "1px solid rgba(22,101,52,0.2)",
-                }}
-              >
-                <CheckCircle2 size={16} className="shrink-0" />
-                <span>{successNotice}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleVerifyCode} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--charcoal)" }}>
-                  6-Digit Verification Code
-                </label>
-                <div className="relative">
-                  <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#9B8A7A" }} />
-                  <input
-                    type="text"
-                    required
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    placeholder="123456"
-                    maxLength={6}
-                    autoFocus
-                    className="w-full pl-9 pr-4 py-3 rounded-xl text-center font-mono text-lg tracking-widest outline-none"
-                    style={{ border: "1.5px solid var(--border)", backgroundColor: "var(--ivory)" }}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || verificationCode.trim().length === 0}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all shadow-md hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 cursor-pointer"
-                style={{ backgroundColor: "var(--burgundy)" }}
-              >
-                {loading ? (
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>Verify & Sign In <ArrowRight size={16} /></>
-                )}
-              </button>
-            </form>
-
-            <div className="mt-6 flex flex-col items-center gap-3">
-              <button
-                type="button"
-                onClick={handleResendCode}
-                disabled={resendingCode || resendCooldown > 0}
-                className="text-xs font-semibold flex items-center gap-1.5 hover:underline disabled:opacity-50 cursor-pointer"
-                style={{ color: "var(--burgundy)" }}
-              >
-                <RefreshCw size={13} className={resendingCode ? "animate-spin" : ""} />
-                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend verification email"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setNeedsVerification(false)
-                  setError("")
-                  setSuccessNotice("")
-                }}
-                className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1 cursor-pointer"
               >
                 <ArrowLeft size={13} /> Back to Sign In
               </button>
