@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { useParams, notFound } from "next/navigation"
+import { useParams, notFound, useRouter } from "next/navigation"
 import { Star, Heart, ShoppingBag, Truck, RefreshCw, ShieldCheck, ChevronDown, ChevronUp, Minus, Plus } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useCart } from "@/contexts/CartContext"
@@ -25,6 +25,8 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1)
   const [adding, setAdding] = useState(false)
   const [expandedSection, setExpandedSection] = useState<string | null>("description")
+  const [buying, setBuying] = useState(false)
+  const router = useRouter()
 
   const { addItem } = useCart()
   const { toggle, isWishlisted } = useWishlist()
@@ -81,6 +83,17 @@ export default function ProductPage() {
       setTimeout(() => setAdded(false), 1500)
     } finally {
       setAdding(false)
+    }
+  }
+
+  const handleBuyNow = async () => {
+    if (!product || buying) return
+    setBuying(true)
+    try {
+      await addItem(product.id, quantity, product)
+      router.push("/checkout")
+    } catch (e) {
+      setBuying(false)
     }
   }
 
@@ -330,14 +343,20 @@ export default function ProductPage() {
 
               {product.stock > 0 && (
                 <button
-                  className="w-full flex items-center justify-center py-3.5 px-4 rounded-xl font-semibold text-sm border-2 transition-all hover:scale-[1.01] active:scale-[0.99] box-border"
+                  onClick={handleBuyNow}
+                  disabled={buying || product.stock === 0}
+                  className="w-full flex items-center justify-center py-3.5 px-4 rounded-xl font-semibold text-sm border-2 transition-all hover:scale-[1.01] active:scale-[0.99] box-border disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     borderColor: "var(--burgundy)",
                     color: "var(--burgundy)",
                     backgroundColor: "transparent",
                   }}
                 >
-                  Buy Now
+                  {buying ? (
+                    <span className="w-4 h-4 border-2 border-[var(--burgundy)]/40 border-t-[var(--burgundy)] rounded-full animate-spin" />
+                  ) : (
+                    "Buy Now"
+                  )}
                 </button>
               )}
             </div>

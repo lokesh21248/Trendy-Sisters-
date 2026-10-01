@@ -151,10 +151,10 @@ export function Footer() {
           <div className="py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             <div className="flex items-center gap-3 mb-3">
               <div
-                className="w-10 h-10 rounded-full overflow-hidden border-2 flex items-center justify-center"
+                className="w-16 h-16 rounded-full overflow-hidden border-2 flex items-center justify-center shrink-0"
                 style={{ borderColor: "var(--gold)", backgroundColor: "var(--ivory)" }}
               >
-                <Image src="/logo.jpg" alt="Trendy Sisters" width={40} height={40} className="object-contain" />
+                <Image src="/logo.jpg" alt="Trendy Sisters" width={64} height={64} className="object-contain rounded-full" quality={100} unoptimized={true} />
               </div>
               <div>
                 <div className="font-serif font-bold text-base text-ivory">Trendy Sisters</div>
@@ -232,10 +232,10 @@ export function Footer() {
           <div className="lg:col-span-2">
             <div className="flex items-center gap-3 mb-4">
               <div
-                className="w-14 h-14 rounded-full overflow-hidden border-2 flex items-center justify-center bg-ivory"
+                className="w-24 h-24 rounded-full overflow-hidden border-2 flex items-center justify-center bg-ivory shrink-0"
                 style={{ borderColor: "var(--gold)" }}
               >
-                <Image src="/logo.jpg" alt="Trendy Sisters" width={56} height={56} className="object-contain" />
+                <Image src="/logo.jpg" alt="Trendy Sisters" width={96} height={96} className="object-contain rounded-full" quality={100} unoptimized={true} />
               </div>
               <div>
                 <div className="font-serif font-bold text-xl text-ivory">Trendy Sisters</div>

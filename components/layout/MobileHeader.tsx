@@ -40,15 +40,17 @@ export function MobileHeader() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 sm:gap-2.5 min-w-0 shrink">
           <div
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden border-2 flex items-center justify-center shrink-0"
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 flex items-center justify-center shrink-0"
             style={{ borderColor: "var(--gold)", backgroundColor: "var(--ivory)" }}
           >
             <Image
               src="/logo.jpg"
               alt="Trendy Sisters"
-              width={36}
-              height={36}
+              width={56}
+              height={56}
               className="object-contain"
+              quality={100}
+              unoptimized={true}
               onError={(e) => {
                 const t = e.target as HTMLImageElement
                 t.style.display = "none"

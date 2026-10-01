@@ -49,15 +49,17 @@ export function Header() {
           <Link href="/" className="flex-shrink-0">
             <div className="flex items-center gap-3">
               <div
-                className="w-14 h-14 rounded-full border-2 flex items-center justify-center p-1 bg-white"
+                className="w-20 h-20 rounded-full border-2 flex items-center justify-center p-1 bg-white shrink-0"
                 style={{ borderColor: "var(--gold)" }}
               >
                 <Image
                   src="/logo.jpg"
                   alt="Trendy Sisters"
-                  width={56}
-                  height={56}
-                  className="object-contain"
+                  width={80}
+                  height={80}
+                  className="object-contain rounded-full"
+                  quality={100}
+                  unoptimized={true}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement
                     target.style.display = "none"
