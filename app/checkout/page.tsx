@@ -810,6 +810,7 @@ export default function CheckoutPage() {
                         Pay with cash or UPI directly to our delivery courier when your saree package arrives.
                       </p>
                     </div>
+                  </label>
                 </div>
 
                 {/* Only Cash on Delivery is accepted */}
