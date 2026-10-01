@@ -162,17 +162,8 @@ export default function SignupPage() {
               updatedAt: new Date().toISOString(),
             }
             localStorage.setItem(`ts_profile_${userId}`, JSON.stringify(extendedData))
-
-            const supabase = createClient()
-            await (supabase as any).from("profiles").upsert({
-              id: userId,
-              full_name: form.fullName.trim(),
-              phone: rawPhone || null,
-              email: form.email.trim(),
-              updated_at: new Date().toISOString(),
-            })
           } catch (syncErr) {
-            console.warn("Profile sync after signup skipped:", syncErr)
+            console.warn("Local profile cache skipped:", syncErr)
           }
         }
 
@@ -182,6 +173,22 @@ export default function SignupPage() {
           const fin = await (signUp as any).finalize()
           if (fin?.error) throw fin.error
         }
+
+        // Sync profile via server API after active session
+        try {
+          await fetch("/api/profile/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              full_name: form.fullName.trim(),
+              phone: form.phone.trim() ? `+91${form.phone.trim().replace(/^\+91/, "")}` : null,
+              email: form.email.trim(),
+            }),
+          })
+        } catch (apiErr) {
+          console.warn("Profile sync API notice:", apiErr)
+        }
+
         router.push("/account")
         router.refresh()
       } else {

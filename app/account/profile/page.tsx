@@ -73,17 +73,14 @@ export default function ProfilePage() {
             if (parsed.phone && !userPhone) setPhone(parsed.phone)
           }
 
-          // Also check Supabase profiles
-          const supabase = createClient()
-          const { data } = await (supabase as any)
-            .from("profiles")
-            .select("*")
-            .eq("id", user?.id)
-            .maybeSingle()
-
-          if (data) {
-            if (data.phone && !userPhone) setPhone(data.phone)
-          }
+          // Also check server-synced profile
+          try {
+            const res = await fetch("/api/profile/sync")
+            const json = await res.json()
+            if (json.success && json.profile?.phone && !userPhone) {
+              setPhone(json.profile.phone)
+            }
+          } catch {}
         } catch (err) {
           console.error("Error loading extended profile:", err)
         }
@@ -185,19 +182,20 @@ export default function ProfilePage() {
 
       localStorage.setItem(`ts_profile_${user.id}`, JSON.stringify(extendedData))
 
-      // Sync with Supabase profiles table
+      // Sync with database profile via server API
       try {
-        const supabase = createClient()
-        await (supabase as any).from("profiles").upsert({
-          id: user.id,
-          full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-          phone: phone.trim() ? `+91${phone.trim().replace(/^\+91/, "")}` : null,
-          email: user.primaryEmailAddress?.emailAddress || null,
-          avatar_url: user.imageUrl,
-          updated_at: new Date().toISOString(),
+        await fetch("/api/profile/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+            phone: phone.trim() ? `+91${phone.trim().replace(/^\+91/, "")}` : null,
+            email: user.primaryEmailAddress?.emailAddress || null,
+            avatar_url: user.imageUrl,
+          }),
         })
       } catch (dbErr) {
-        console.warn("Supabase profile sync skipped:", dbErr)
+        console.warn("Profile sync skipped:", dbErr)
       }
 
       setMessage({ type: "success", text: "Your profile information has been saved successfully!" })

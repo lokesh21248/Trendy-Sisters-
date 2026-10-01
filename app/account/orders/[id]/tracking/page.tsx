@@ -17,12 +17,34 @@ export default async function TrackingPage({ params }: Props) {
 
   const supabase = await createClient()
 
-  const { data: order } = await supabase
-    .from("orders")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", userId)
-    .single()
+  const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)
+  let order: any = null
+
+  if (isUuid) {
+    const { data } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .maybeSingle()
+    order = data
+  }
+
+  if (!order) {
+    const { data: userOrders } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+
+    if (userOrders && userOrders.length > 0) {
+      order = userOrders.find((o: any) => {
+        if (o.id === id) return true
+        if (o.notes && typeof o.notes === "string" && o.notes.includes(id)) return true
+        return false
+      }) || null
+    }
+  }
 
   const typedOrder = order as any;
   if (!typedOrder) notFound()

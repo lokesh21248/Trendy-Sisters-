@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { Database } from "@/types/database"
 import { AdminOrder, AdminOrderItem, AdminCustomerAddress } from "@/types/admin"
+import { checkAdminAccess } from "@/lib/admin/auth"
 
 function getAdminSupabaseClient() {
   const supabaseUrl =
@@ -21,9 +22,17 @@ function getAdminSupabaseClient() {
 // In-memory store fallback to ensure newly placed orders survive seamlessly across API requests
 let serverOrdersStore: AdminOrder[] = []
 
-// GET /api/admin/orders (Fetch all orders with customer details & items)
+// GET /api/admin/orders (Fetch all orders with customer details & items - ADMIN ONLY)
 export async function GET() {
   try {
+    const { authorized } = await checkAdminAccess()
+    if (!authorized) {
+      return NextResponse.json(
+        { success: false, error: "Access Denied: Administrative privileges required." },
+        { status: 403 }
+      )
+    }
+
     const supabase = getAdminSupabaseClient()
 
     const { data: dbOrders, error } = await supabase
@@ -340,13 +349,13 @@ export async function POST(req: NextRequest) {
     // Save in server store so it immediately surfaces on GET
     serverOrdersStore = [finalAdminOrder, ...serverOrdersStore.filter((o) => o.id !== finalAdminOrder.id)]
 
-    console.log(`[API /api/admin/orders POST] New COD Order Booked: ${generatedOrderNumber} for ${customer_name}`)
+    console.log(`[API /api/admin/orders POST] New Order Booked: ${generatedOrderNumber} for ${customer_name}`)
 
     return NextResponse.json({
       success: true,
       order: finalAdminOrder,
       order_number: generatedOrderNumber,
-      message: "Order placed successfully and forwarded to Admin Manage Orders.",
+      message: "Order placed successfully.",
     })
   } catch (err: any) {
     console.error("[API /api/admin/orders POST] Exception:", err)
@@ -357,9 +366,17 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT /api/admin/orders (Update Order Fulfillment / Payment Status)
+// PUT /api/admin/orders (Update Order Fulfillment / Payment Status - ADMIN ONLY)
 export async function PUT(req: NextRequest) {
   try {
+    const { authorized } = await checkAdminAccess()
+    if (!authorized) {
+      return NextResponse.json(
+        { success: false, error: "Access Denied: Administrative privileges required." },
+        { status: 403 }
+      )
+    }
+
     const body = await req.json()
     const { id, status, payment_status, notes } = body
 

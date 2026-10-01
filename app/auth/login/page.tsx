@@ -105,31 +105,18 @@ function LoginForm() {
     }
   }, [searchParams])
 
-  // Helper to safely check and create user profile in database without blocking login
+  // Helper to safely check and sync user profile in database via server API
   const syncUserProfile = async (userId: string, userEmail: string) => {
     try {
-      console.log(`[LOGIN ATTEMPT] Profile lookup in progress for user ID: ${userId}`)
-      const supabase = createClient()
-      const { data: existingProfile, error: profileErr } = await (supabase as any)
-        .from("profiles")
-        .select("id")
-        .eq("id", userId)
-        .maybeSingle()
-
-      if (!existingProfile && !profileErr) {
-        console.log(`[LOGIN ATTEMPT] Creating missing profile for user ID: ${userId}`)
-        await (supabase as any)
-          .from("profiles")
-          .insert({
-            id: userId,
-            email: userEmail,
-            updated_at: new Date().toISOString(),
-          })
-      }
-      console.log("[LOGIN ATTEMPT] Profile lookup: completed successfully")
-    } catch (dbErr) {
-      // Never fail authentication due to profile/database errors
-      console.warn("[LOGIN ATTEMPT] Database profile check safely bypassed:", dbErr)
+      console.log(`[LOGIN ATTEMPT] Profile sync in progress for user ID: ${userId}`)
+      await fetch("/api/profile/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
+      })
+      console.log("[LOGIN ATTEMPT] Profile sync completed successfully")
+    } catch (syncErr) {
+      console.warn("[LOGIN ATTEMPT] Profile sync notice:", syncErr)
     }
   }
 
@@ -250,7 +237,7 @@ function LoginForm() {
       // Fallback for unexpected status
       setError("Authentication could not be completed. Please check your credentials or try again.")
     } catch (err: any) {
-      console.error("[LOGIN ATTEMPT] Auth error occurred:", err)
+      console.warn("[LOGIN ATTEMPT] Auth error:", err?.message || err)
       const userMessage = parseAuthError(err)
       setError(userMessage)
     } finally {

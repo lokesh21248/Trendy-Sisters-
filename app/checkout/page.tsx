@@ -22,6 +22,8 @@ import {
   Home,
   FileText,
   AlertCircle,
+  ArrowRight,
+  ShoppingBag,
 } from "lucide-react"
 import { AdminOrder } from "@/types/admin"
 
@@ -341,16 +343,23 @@ export default function CheckoutPage() {
   // Order Confirmed / Success Screen
   if (step === "success") {
     const isCOD = placedOrder?.payment_method === "Cash on Delivery"
+    const orderRef = orderId || placedOrder?.order_number || "TS-2026-CONFIRMED"
+    const customerOrderHref = placedOrder?.id
+      ? `/account/orders/${placedOrder.id}`
+      : "/account/orders"
+    const customerTrackHref = placedOrder?.id
+      ? `/account/orders/${placedOrder.id}/tracking`
+      : "/account/orders"
 
     return (
       <div style={{ backgroundColor: "var(--ivory)" }} className="min-h-screen py-10 px-4">
         <div className="max-w-2xl mx-auto bg-white p-6 sm:p-10 rounded-3xl border border-[var(--border)] shadow-lg text-center">
-          {/* Success Check */}
-          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          {/* Success Check Badge */}
+          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5 shadow-sm">
             <CheckCircle2 size={44} className="text-emerald-700" />
           </div>
 
-          <span className="inline-block px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 mb-3">
+          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 mb-3">
             {isCOD ? "Cash on Delivery Confirmed" : "Order Placed Successfully"}
           </span>
 
@@ -359,24 +368,27 @@ export default function CheckoutPage() {
           </h1>
 
           <p className="text-sm text-[#9B8A7A] mb-6">
-            Your booking details have been registered and sent directly to the{" "}
-            <span className="font-bold text-[#651F35]">Admin Manage Orders</span> dispatch queue.
+            Your booking/order details have been registered successfully.
           </p>
 
           {/* Order Details Card */}
           <div className="bg-[var(--ivory)] rounded-2xl p-5 border border-[var(--border)] text-left mb-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--border)]">
               <div>
-                <span className="text-xs text-[#9B8A7A] block">Order Reference</span>
+                <span className="text-xs text-[#9B8A7A] block font-medium uppercase tracking-wider">
+                  Order Reference
+                </span>
                 <span className="font-mono font-bold text-base text-[var(--burgundy)]">
-                  {orderId || placedOrder?.order_number}
+                  {orderRef}
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-xs text-[#9B8A7A] block">Payment Method</span>
+                <span className="text-xs text-[#9B8A7A] block font-medium uppercase tracking-wider">
+                  Payment Method
+                </span>
                 <span className="inline-flex items-center gap-1 font-semibold text-xs text-charcoal">
                   <Banknote size={14} className="text-[#B88A3B]" />
-                  {placedOrder?.payment_method || "Cash on Delivery"}
+                  {placedOrder?.payment_method || (isCOD ? "Cash on Delivery" : "UPI")}
                 </span>
               </div>
             </div>
@@ -391,14 +403,14 @@ export default function CheckoutPage() {
                   <span className="font-bold text-[#651F35]">
                     {formatPrice(placedOrder?.total || finalTotal)}
                   </span>{" "}
-                  ready to hand over to the courier executive upon saree delivery.
+                  ready to hand over to the courier executive upon delivery.
                 </div>
               </div>
             )}
 
-            {/* Delivery Destination */}
+            {/* Delivering To */}
             {placedOrder?.address && (
-              <div className="text-xs text-charcoal space-y-1">
+              <div className="text-xs text-charcoal space-y-1.5 pt-1">
                 <span className="font-semibold text-[#9B8A7A] block uppercase tracking-wider text-[11px]">
                   Delivering To:
                 </span>
@@ -406,68 +418,93 @@ export default function CheckoutPage() {
                   {placedOrder.customer_name} • {placedOrder.customer_phone}
                 </div>
                 <div className="text-[#6B5E51]">
-                  {placedOrder.address.house_flat}, {placedOrder.address.street}
+                  {placedOrder.address.house_flat}
+                  {placedOrder.address.street ? `, ${placedOrder.address.street}` : ""}
                 </div>
                 <div className="text-[#6B5E51]">
                   {placedOrder.address.city}, {placedOrder.address.state} -{" "}
-                  <span className="font-semibold">{placedOrder.address.pincode}</span>
+                  <span className="font-semibold text-charcoal">
+                    {placedOrder.address.pincode}
+                  </span>
                 </div>
               </div>
             )}
 
-            {/* Items Summary */}
+            {/* Items Ordered */}
             {placedOrder?.order_items && placedOrder.order_items.length > 0 && (
               <div className="pt-3 border-t border-[var(--border)]">
-                <span className="font-semibold text-[#9B8A7A] block uppercase tracking-wider text-[11px] mb-2">
-                  Items Booked ({placedOrder.order_items.length}):
+                <span className="font-semibold text-[#9B8A7A] block uppercase tracking-wider text-[11px] mb-2.5">
+                  Items Ordered ({placedOrder.order_items.length}):
                 </span>
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {placedOrder.order_items.map((it) => (
-                    <div key={it.id} className="flex items-center justify-between text-xs gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {it.product_image && (
+                    <div
+                      key={it.id}
+                      className="flex items-center justify-between text-xs gap-3 p-2.5 rounded-xl bg-white border border-[var(--border)]/70 shadow-2xs"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {it.product_image ? (
                           <img
                             src={it.product_image}
-                            alt=""
-                            className="w-8 h-10 object-cover rounded border border-[var(--border)] shrink-0"
+                            alt={it.product_name}
+                            className="w-10 h-12 object-cover rounded-md border border-[var(--border)] shrink-0"
                           />
+                        ) : (
+                          <div className="w-10 h-12 rounded-md bg-ivory-dark border border-[var(--border)] flex items-center justify-center shrink-0 text-[10px] text-[#9B8A7A]">
+                            Saree
+                          </div>
                         )}
-                        <span className="truncate text-charcoal font-medium">
-                          {it.product_name}
-                        </span>
-                        <span className="text-[#9B8A7A]">x{it.quantity}</span>
+                        <div className="min-w-0">
+                          <p className="truncate text-charcoal font-semibold text-xs">
+                            {it.product_name}
+                          </p>
+                          <p className="text-[#9B8A7A] text-[11px] mt-0.5">
+                            Qty: <span className="font-medium text-charcoal">{it.quantity}</span>
+                          </p>
+                        </div>
                       </div>
-                      <span className="font-bold text-charcoal shrink-0">
+                      <span className="font-bold text-charcoal shrink-0 text-sm">
                         {formatPrice(it.price * it.quantity)}
                       </span>
                     </div>
                   ))}
                 </div>
+
+                {/* Total Summary */}
+                <div className="mt-3.5 pt-3 border-t border-dashed border-[var(--border)] flex justify-between items-center text-sm">
+                  <span className="font-medium text-[#6B5E51]">Total Amount</span>
+                  <span className="font-bold text-base text-[var(--burgundy)]">
+                    {formatPrice(placedOrder?.total || finalTotal)}
+                  </span>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Action CTAs */}
+          {/* Customer Action CTAs - Replaces all admin navigation */}
           <div className="space-y-3">
             <Link
-              href="/admin/orders"
-              className="btn-primary w-full block py-3.5 text-center text-sm font-semibold shadow-md"
+              href={customerOrderHref}
+              className="btn-primary w-full flex items-center justify-center gap-2 py-3.5 text-center text-sm font-semibold shadow-md transition-all hover:shadow-lg"
             >
-              View in Admin Manage Orders →
+              <span>View My Order</span>
+              <ArrowRight size={16} />
             </Link>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Link
-                href="/account/orders"
-                className="block py-3 text-xs font-semibold text-center text-charcoal border border-[var(--border)] rounded-xl hover:bg-ivory transition-colors"
+                href={customerTrackHref}
+                className="flex items-center justify-center gap-2 py-3 px-4 text-xs font-semibold text-center text-burgundy bg-burgundy/5 border border-burgundy/20 rounded-xl hover:bg-burgundy/10 transition-colors"
               >
-                Customer Orders
+                <Truck size={15} />
+                <span>Track Order →</span>
               </Link>
               <Link
                 href="/shop"
-                className="block py-3 text-xs font-semibold text-center text-charcoal border border-[var(--border)] rounded-xl hover:bg-ivory transition-colors"
+                className="flex items-center justify-center gap-2 py-3 px-4 text-xs font-semibold text-center text-charcoal border border-[var(--border)] rounded-xl hover:bg-ivory transition-colors"
               >
-                Continue Shopping
+                <ShoppingBag size={15} />
+                <span>Continue Shopping</span>
               </Link>
             </div>
           </div>
