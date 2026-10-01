@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic"
 export default async function AccountPage() {
   const { userId } = await auth()
   if (!userId) {
-    redirect("/sign-in")
+    redirect("/auth/login?redirect_url=/account")
   }
 
   const user = await currentUser()

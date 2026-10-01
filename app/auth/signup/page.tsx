@@ -7,15 +7,31 @@ import { Eye, EyeOff, Mail, Lock, User, ArrowRight, KeyRound, Phone, RefreshCw }
 import { useSignUp, useClerk } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
 
+function getSafeRedirectUrl(param: string | null): string {
+  if (!param) return "/"
+  try {
+    if (param.startsWith("http://") || param.startsWith("https://")) {
+      const parsed = new URL(param)
+      return parsed.pathname + parsed.search + parsed.hash
+    }
+    if (param.startsWith("/")) {
+      return param
+    }
+  } catch {
+    // ignore
+  }
+  return "/"
+}
+
 function SignupForm() {
   const { signUp } = useSignUp()
   const clerk = useClerk()
   const isLoaded = clerk.loaded
   const router = useRouter()
   const searchParams = useSearchParams()
-  const rawRedirect = searchParams?.get("redirect_url") || "/account"
+  const rawRedirect = getSafeRedirectUrl(searchParams?.get("redirect_url"))
   // Never redirect regular customer signup to admin portal
-  const targetRedirect = rawRedirect.startsWith("/admin") ? "/account" : rawRedirect
+  const targetRedirect = rawRedirect.startsWith("/admin") ? "/" : rawRedirect
 
   const [form, setForm] = useState({
     fullName: "",

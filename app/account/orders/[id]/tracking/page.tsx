@@ -13,7 +13,7 @@ interface Props {
 export default async function TrackingPage({ params }: Props) {
   const { id } = await params
   const { userId } = await auth()
-  if (!userId) redirect("/sign-in")
+  if (!userId) redirect(`/auth/login?redirect_url=/account/orders/${id}/tracking`)
 
   const supabase = await createClient()
 

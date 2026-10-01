@@ -33,12 +33,22 @@ export default function ProductPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       setLoading(true)
-      const { data } = await supabase
+      let { data } = await supabase
         .from("products")
         .select("*, product_images(*), categories(*)")
         .eq("slug", slug)
         .eq("is_active", true)
-        .single()
+        .maybeSingle()
+
+      if (!data) {
+        const { data: byId } = await supabase
+          .from("products")
+          .select("*, product_images(*), categories(*)")
+          .eq("id", slug)
+          .eq("is_active", true)
+          .maybeSingle()
+        data = byId
+      }
 
       if (!data) { setLoading(false); return }
       const typedData = sanitizeProduct(data as any);

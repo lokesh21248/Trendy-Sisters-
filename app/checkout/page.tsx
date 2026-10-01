@@ -37,13 +37,19 @@ function formatPrice(p: number) {
 
 export default function CheckoutPage() {
   const { items, total, itemCount, clearCart } = useCart()
-  const { userId } = useAuth()
+  const { userId, isLoaded } = useAuth()
   const { user } = useUser()
 
   const [step, setStep] = useState<"address" | "payment" | "success">("address")
   const [loading, setLoading] = useState(false)
   const [orderId, setOrderId] = useState<string>("")
   const [placedOrder, setPlacedOrder] = useState<AdminOrder | null>(null)
+
+  useEffect(() => {
+    if (isLoaded && !userId && step !== "success") {
+      window.location.href = "/auth/login?redirect_url=/checkout"
+    }
+  }, [isLoaded, userId, step])
 
   // Shipping Form State
   const [shippingForm, setShippingForm] = useState({

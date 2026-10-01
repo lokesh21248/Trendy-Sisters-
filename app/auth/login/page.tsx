@@ -91,10 +91,27 @@ function isClientUserAdmin(user: any, emailStr?: string): boolean {
   return adminEmails.includes(cleanEmail)
 }
 
+function getSafeRedirectUrl(param: string | null): string {
+  if (!param) return "/"
+  try {
+    if (param.startsWith("http://") || param.startsWith("https://")) {
+      const parsed = new URL(param)
+      return parsed.pathname + parsed.search + parsed.hash
+    }
+    if (param.startsWith("/")) {
+      return param
+    }
+  } catch {
+    // ignore
+  }
+  return "/"
+}
+
 function LoginForm() {
   const { signIn } = useSignIn()
   const clerk = useClerk()
   const isLoaded = clerk.loaded
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPass, setShowPass] = useState(false)
@@ -114,7 +131,7 @@ function LoginForm() {
 
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectUrl = searchParams.get("redirect_url") || "/account"
+  const redirectUrl = getSafeRedirectUrl(searchParams.get("redirect_url"))
 
   useEffect(() => {
     if (searchParams.get("mode") === "forgot") {
@@ -244,7 +261,7 @@ function LoginForm() {
         if (targetDestination.startsWith("/admin")) {
           const isAdmin = isClientUserAdmin(clerk.user, cleanEmail)
           if (!isAdmin) {
-            targetDestination = "/account"
+            targetDestination = "/"
           }
         }
 

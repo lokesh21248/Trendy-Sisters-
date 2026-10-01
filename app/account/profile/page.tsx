@@ -219,6 +219,13 @@ export default function ProfilePage() {
     )
   }
 
+  if (isLoaded && !user) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/auth/login?redirect_url=/account/profile"
+    }
+    return null
+  }
+
   const email = user?.primaryEmailAddress?.emailAddress || ""
   const displayName = `${firstName} ${lastName}`.trim() || user?.firstName || "Shopper"
 

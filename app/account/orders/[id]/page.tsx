@@ -40,7 +40,7 @@ const statusColors: Record<string, { bg: string; text: string }> = {
 export default async function OrderDetailPage({ params }: Props) {
   const { id } = await params
   const { userId } = await auth()
-  if (!userId) redirect("/sign-in")
+  if (!userId) redirect(`/auth/login?redirect_url=/account/orders/${id}`)
 
   const supabase = await createClient()
 
