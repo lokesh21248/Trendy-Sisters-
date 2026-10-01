@@ -10,17 +10,6 @@ export const metadata: Metadata = {
   description: "Browse all curated saree categories including Silk, Cotton, Banarasi, Designer, and Festive collections.",
 }
 
-const fallbackCategories = [
-  { id: "1", name: "Silk Sarees", slug: "silk-sarees", description: "Timeless pure & Kanjivaram silk weaves", image_url: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&h=450&fit=crop" },
-  { id: "2", name: "Cotton Sarees", slug: "cotton-sarees", description: "Breathable daily elegance & handlooms", image_url: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=600&h=450&fit=crop" },
-  { id: "3", name: "Banarasi Sarees", slug: "banarasi-sarees", description: "Regal zari work & royal Mughal motifs", image_url: "https://images.unsplash.com/photo-1679006831648-7c9ea12e5807?w=600&h=450&fit=crop" },
-  { id: "4", name: "Designer Sarees", slug: "designer-sarees", description: "Contemporary silhouettes & party trends", image_url: "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=600&h=450&fit=crop" },
-  { id: "5", name: "Wedding Sarees", slug: "wedding-sarees", description: "Grand bridal drapes & heirloom treasures", image_url: "https://images.unsplash.com/photo-1585128792020-803d29415281?w=600&h=450&fit=crop" },
-  { id: "6", name: "Party Wear", slug: "party-wear", description: "Glamorous sequins, shimmer & modern pleats", image_url: "https://images.unsplash.com/photo-1610030469839-f909584b43f1?w=600&h=450&fit=crop" },
-  { id: "7", name: "Festive Collection", slug: "festive-collection", description: "Vibrant colors for pujas & family celebrations", image_url: "https://images.unsplash.com/photo-1618901185975-d59f7091bcfe?w=600&h=450&fit=crop" },
-  { id: "8", name: "Printed Sarees", slug: "printed-sarees", description: "Artistic florals, kalamkari & geometric motifs", image_url: "https://images.unsplash.com/photo-1641699862936-be9f49b1c38d?w=600&h=450&fit=crop" },
-]
-
 async function getCategories() {
   try {
     const supabase = await createClient()
@@ -29,13 +18,13 @@ async function getCategories() {
       .select("*")
       .eq("is_active", true)
       .order("display_order")
-    const rawCategories = data && data.length > 0 ? data : fallbackCategories
+    const rawCategories = data && data.length > 0 ? data : []
     return rawCategories.map((c: any) => ({
       ...c,
       image_url: getSafeImageUrl(c.image_url),
     }))
   } catch {
-    return fallbackCategories
+    return []
   }
 }
 

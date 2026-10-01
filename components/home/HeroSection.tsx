@@ -8,32 +8,8 @@ import { createClient } from "@/lib/supabase/client"
 import { getSafeImageUrl, DEFAULT_BANNER_IMAGE } from "@/lib/image-utils"
 import type { Banner } from "@/types"
 
-const fallbackBanners = [
-  {
-    id: "1",
-    title: "Elegance in Every Drape",
-    subtitle: "Discover timeless sarees crafted for modern celebrations.",
-    image_url: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=1400&h=700&fit=crop&q=80",
-    link_url: "/shop",
-  },
-  {
-    id: "2",
-    title: "The Wedding Edit 2024",
-    subtitle: "Celebrate your special moments in timeless elegance.",
-    image_url: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=1400&h=700&fit=crop&q=80",
-    link_url: "/collections/wedding-edit",
-  },
-  {
-    id: "3",
-    title: "Festive Luxe Collection",
-    subtitle: "Celebrate every festival in premium sarees.",
-    image_url: "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=1400&h=700&fit=crop&q=80",
-    link_url: "/collections/festive-luxe",
-  },
-]
-
 export function HeroSection() {
-  const [banners, setBanners] = useState<typeof fallbackBanners>(fallbackBanners)
+  const [banners, setBanners] = useState<any[]>([])
   const [current, setCurrent] = useState(0)
   const supabase = createClient()
 
@@ -56,6 +32,7 @@ export function HeroSection() {
   }, [supabase])
 
   useEffect(() => {
+    if (banners.length === 0) return
     const timer = setInterval(() => {
       setCurrent((c) => (c + 1) % banners.length)
     }, 5000)
@@ -64,6 +41,8 @@ export function HeroSection() {
 
   const prev = () => setCurrent((c) => (c - 1 + banners.length) % banners.length)
   const next = () => setCurrent((c) => (c + 1) % banners.length)
+
+  if (banners.length === 0) return null
 
   const banner = banners[current]
 

@@ -5,17 +5,6 @@ import { createStaticClient } from "@/lib/supabase/server"
 import { getSafeImageUrl } from "@/lib/image-utils"
 import type { Category } from "@/types"
 
-const fallbackCategories = [
-  { id: "1", name: "Silk Sarees", slug: "silk-sarees", image_url: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=300&fit=crop" },
-  { id: "2", name: "Cotton Sarees", slug: "cotton-sarees", image_url: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400&h=300&fit=crop" },
-  { id: "3", name: "Banarasi Sarees", slug: "banarasi-sarees", image_url: "https://images.unsplash.com/photo-1679006831648-7c9ea12e5807?w=400&h=300&fit=crop" },
-  { id: "4", name: "Designer Sarees", slug: "designer-sarees", image_url: "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=400&h=300&fit=crop" },
-  { id: "5", name: "Wedding Sarees", slug: "wedding-sarees", image_url: "https://images.unsplash.com/photo-1585128792020-803d29415281?w=400&h=300&fit=crop" },
-  { id: "6", name: "Party Wear", slug: "party-wear", image_url: "https://images.unsplash.com/photo-1610030469839-f909584b43f1?w=400&h=300&fit=crop" },
-  { id: "7", name: "Festive Collection", slug: "festive-collection", image_url: "https://images.unsplash.com/photo-1618901185975-d59f7091bcfe?w=400&h=300&fit=crop" },
-  { id: "8", name: "Printed Sarees", slug: "printed-sarees", image_url: "https://images.unsplash.com/photo-1641699862936-be9f49b1c38d?w=400&h=300&fit=crop" },
-]
-
 async function getCategories() {
   try {
     const supabase = createStaticClient()
@@ -25,13 +14,13 @@ async function getCategories() {
       .eq("is_active", true)
       .order("display_order")
       .limit(8)
-    const rawCategories = data && data.length > 0 ? data : fallbackCategories
+    const rawCategories = data && data.length > 0 ? data : []
     return rawCategories.map((c: any) => ({
       ...c,
       image_url: getSafeImageUrl(c.image_url),
     }))
   } catch {
-    return fallbackCategories
+    return []
   }
 }
 
