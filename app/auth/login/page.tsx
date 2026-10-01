@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Eye, EyeOff, Mail, Lock, ArrowRight, KeyRound, ArrowLeft, RefreshCw, CheckCircle2 } from "lucide-react"
@@ -18,6 +18,10 @@ function parseAuthError(err: any): string {
 
   // Separate, specific messages for each case
   switch (code) {
+    case "form_code_incorrect":
+      return "Invalid verification code. Please check your email and try again."
+    case "form_password_length_too_short":
+      return "Password must be at least 8 characters long."
     case "form_identifier_not_found":
       return "No account was found with this email. Please check your email or create an account."
     case "form_password_incorrect":
@@ -82,9 +86,24 @@ function LoginForm() {
   const [resendingCode, setResendingCode] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
 
+  // Forgot password states
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
+  const [forgotStep, setForgotStep] = useState<"request" | "reset">("request")
+  const [resetCode, setResetCode] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmNewPassword, setConfirmNewPassword] = useState("")
+  const [showNewPass, setShowNewPass] = useState(false)
+
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectUrl = searchParams.get("redirect_url") || "/account"
+
+  useEffect(() => {
+    if (searchParams.get("mode") === "forgot") {
+      setIsForgotPassword(true)
+      setForgotStep("request")
+    }
+  }, [searchParams])
 
   // Helper to safely check and create user profile in database without blocking login
   const syncUserProfile = async (userId: string, userEmail: string) => {
@@ -377,6 +396,446 @@ function LoginForm() {
     }
   }
 
+  // Handle Sending Password Reset Code
+  const handleSendResetCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!signIn || !isLoaded) return
+    const cleanEmail = email.trim()
+    if (!cleanEmail) {
+      setError("Please enter your email address.")
+      return
+    }
+
+    setLoading(true)
+    setError("")
+    setSuccessNotice("")
+
+    try {
+      try {
+        await (signIn as any).create({
+          strategy: "reset_password_email_code",
+          identifier: cleanEmail,
+        })
+      } catch (directErr: any) {
+        console.warn("Direct reset_password_email_code create failed, trying prepareFirstFactor:", directErr)
+        const res: any = await (signIn as any).create({
+          identifier: cleanEmail,
+        })
+        const factor = res.supportedFirstFactors?.find(
+          (ff: any) => ff.strategy === "reset_password_email_code"
+        )
+        if (factor && typeof (signIn as any).prepareFirstFactor === "function") {
+          await (signIn as any).prepareFirstFactor({
+            strategy: "reset_password_email_code",
+            emailAddressId: factor.emailAddressId,
+          })
+        } else {
+          throw directErr
+        }
+      }
+
+      setForgotStep("reset")
+      setSuccessNotice(`A password reset code was sent to ${cleanEmail}. Please enter it below.`)
+    } catch (err: any) {
+      console.error("Password reset request error:", err)
+      setError(parseAuthError(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle Submitting New Password with Reset Code
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!signIn || !isLoaded) return
+
+    if (!resetCode.trim()) {
+      setError("Please enter the 6-digit verification code.")
+      return
+    }
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters long.")
+      return
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError("Passwords do not match.")
+      return
+    }
+
+    setLoading(true)
+    setError("")
+    setSuccessNotice("")
+
+    try {
+      const result: any = await (signIn as any).attemptFirstFactor({
+        strategy: "reset_password_email_code",
+        code: resetCode.trim(),
+        password: newPassword,
+      })
+
+      if (result && "error" in result && result.error) {
+        throw result.error
+      }
+
+      const status = result?.status || signIn.status
+      if (status === "complete") {
+        const userId = result?.createdUserId || (signIn as any)?.createdUserId || (clerk.user as any)?.id || "present"
+        if (userId && userId !== "present") {
+          await syncUserProfile(userId, email.trim())
+        }
+
+        const sessionId = result?.createdSessionId || (signIn as any)?.createdSessionId
+        if (clerk && sessionId) {
+          await clerk.setActive({ session: sessionId })
+        } else if (typeof (signIn as any).finalize === "function") {
+          await (signIn as any).finalize()
+        }
+
+        router.push(redirectUrl)
+        router.refresh()
+      } else {
+        setError("Password reset incomplete. Please check your verification code.")
+      }
+    } catch (err: any) {
+      console.error("Reset password error:", err)
+      const code = err?.errors?.[0]?.code || err?.code || ""
+      if (code === "form_code_incorrect") {
+        setError("Invalid verification code. Please check the code sent to your email.")
+      } else {
+        setError(parseAuthError(err))
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle Resend Reset Code
+  const handleResendResetCode = async () => {
+    if (resendingCode || resendCooldown > 0 || !signIn) return
+    setResendingCode(true)
+    setError("")
+    setSuccessNotice("")
+
+    try {
+      try {
+        await (signIn as any).create({
+          strategy: "reset_password_email_code",
+          identifier: email.trim(),
+        })
+      } catch (createErr: any) {
+        const factors = (signIn as any).supportedFirstFactors || []
+        const factor: any = factors.find((f: any) => f.strategy === "reset_password_email_code")
+        if (typeof (signIn as any).prepareFirstFactor === "function") {
+          await (signIn as any).prepareFirstFactor({
+            strategy: "reset_password_email_code",
+            emailAddressId: factor?.emailAddressId,
+          })
+        }
+      }
+
+      setSuccessNotice("A new reset code has been sent to your email.")
+      setResendCooldown(30)
+      const timer = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (err: any) {
+      setError(parseAuthError(err))
+    } finally {
+      setResendingCode(false)
+    }
+  }
+
+  // Forgot Password Screen - Step 1: Request Code
+  if (isForgotPassword && forgotStep === "request") {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center px-4 py-16"
+        style={{ backgroundColor: "var(--ivory)" }}
+      >
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-2 shadow-sm"
+              style={{
+                backgroundColor: "rgba(101,31,53,0.08)",
+                borderColor: "var(--gold)",
+              }}
+            >
+              <KeyRound size={28} style={{ color: "var(--burgundy)" }} />
+            </div>
+            <h1 className="font-serif text-2xl font-bold mb-1" style={{ color: "var(--charcoal)" }}>
+              Forgot password?
+            </h1>
+            <p className="text-sm" style={{ color: "#9B8A7A" }}>
+              Enter your email and we&apos;ll send you a 6-digit code to reset your password.
+            </p>
+          </div>
+
+          <div
+            className="p-8 rounded-3xl bg-white"
+            style={{ border: "1px solid var(--border)", boxShadow: "0 4px 24px var(--shadow)" }}
+          >
+            {error && (
+              <div
+                className="mb-4 p-3 rounded-xl text-sm font-medium"
+                style={{
+                  backgroundColor: "rgba(220,38,38,0.08)",
+                  color: "#DC2626",
+                  border: "1px solid rgba(220,38,38,0.2)",
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            {successNotice && (
+              <div
+                className="mb-4 p-3 rounded-xl text-sm font-medium flex items-center gap-2"
+                style={{
+                  backgroundColor: "rgba(22,101,52,0.08)",
+                  color: "#166534",
+                  border: "1px solid rgba(22,101,52,0.2)",
+                }}
+              >
+                <CheckCircle2 size={16} className="shrink-0" />
+                <span>{successNotice}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSendResetCode} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--charcoal)" }}>
+                  Registered email address
+                </label>
+                <div className="relative">
+                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#9B8A7A" }} />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all"
+                    style={{ border: "1.5px solid var(--border)", backgroundColor: "var(--ivory)" }}
+                    onFocus={(e) => (e.target.style.borderColor = "var(--burgundy)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !email.trim()}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all shadow-md hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+                style={{ backgroundColor: "var(--burgundy)" }}
+              >
+                {loading ? (
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>Send Reset Code <ArrowRight size={16} /></>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(false)
+                  setError("")
+                  setSuccessNotice("")
+                }}
+                className="text-xs text-gray-500 hover:text-gray-800 inline-flex items-center gap-1 cursor-pointer font-medium"
+              >
+                <ArrowLeft size={13} /> Back to Sign In
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Forgot Password Screen - Step 2: Enter Code & New Password
+  if (isForgotPassword && forgotStep === "reset") {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center px-4 py-16"
+        style={{ backgroundColor: "var(--ivory)" }}
+      >
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-2 shadow-sm"
+              style={{
+                backgroundColor: "rgba(101,31,53,0.08)",
+                borderColor: "var(--gold)",
+              }}
+            >
+              <Lock size={28} style={{ color: "var(--burgundy)" }} />
+            </div>
+            <h1 className="font-serif text-2xl font-bold mb-1" style={{ color: "var(--charcoal)" }}>
+              Create new password
+            </h1>
+            <p className="text-sm" style={{ color: "#9B8A7A" }}>
+              Enter the code sent to <strong>{email}</strong> and choose your new password.
+            </p>
+          </div>
+
+          <div
+            className="p-8 rounded-3xl bg-white"
+            style={{ border: "1px solid var(--border)", boxShadow: "0 4px 24px var(--shadow)" }}
+          >
+            {error && (
+              <div
+                className="mb-4 p-3 rounded-xl text-sm font-medium"
+                style={{
+                  backgroundColor: "rgba(220,38,38,0.08)",
+                  color: "#DC2626",
+                  border: "1px solid rgba(220,38,38,0.2)",
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            {successNotice && (
+              <div
+                className="mb-4 p-3 rounded-xl text-sm font-medium flex items-center gap-2"
+                style={{
+                  backgroundColor: "rgba(22,101,52,0.08)",
+                  color: "#166534",
+                  border: "1px solid rgba(22,101,52,0.2)",
+                }}
+              >
+                <CheckCircle2 size={16} className="shrink-0" />
+                <span>{successNotice}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--charcoal)" }}>
+                  6-Digit Verification Code
+                </label>
+                <div className="relative">
+                  <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#9B8A7A" }} />
+                  <input
+                    type="text"
+                    required
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value)}
+                    placeholder="123456"
+                    maxLength={6}
+                    autoFocus
+                    className="w-full pl-9 pr-4 py-3 rounded-xl text-center font-mono text-lg tracking-widest outline-none"
+                    style={{ border: "1.5px solid var(--border)", backgroundColor: "var(--ivory)" }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--charcoal)" }}>
+                  New Password
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#9B8A7A" }} />
+                  <input
+                    type={showNewPass ? "text" : "password"}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Minimum 8 characters"
+                    minLength={8}
+                    className="w-full pl-9 pr-10 py-3 rounded-xl text-sm outline-none transition-all"
+                    style={{ border: "1.5px solid var(--border)", backgroundColor: "var(--ivory)" }}
+                    onFocus={(e) => (e.target.style.borderColor = "var(--burgundy)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPass(!showNewPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
+                    style={{ color: "#9B8A7A" }}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--charcoal)" }}>
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#9B8A7A" }} />
+                  <input
+                    type={showNewPass ? "text" : "password"}
+                    required
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    placeholder="Re-enter your new password"
+                    minLength={8}
+                    className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all"
+                    style={{ border: "1.5px solid var(--border)", backgroundColor: "var(--ivory)" }}
+                    onFocus={(e) => (e.target.style.borderColor = "var(--burgundy)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !resetCode.trim() || newPassword.length < 8}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all shadow-md hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+                style={{ backgroundColor: "var(--burgundy)" }}
+              >
+                {loading ? (
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>Save New Password & Sign In <ArrowRight size={16} /></>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 flex flex-col items-center gap-3">
+              <button
+                type="button"
+                onClick={handleResendResetCode}
+                disabled={resendingCode || resendCooldown > 0}
+                className="text-xs font-semibold flex items-center gap-1.5 hover:underline disabled:opacity-50 cursor-pointer"
+                style={{ color: "var(--burgundy)" }}
+              >
+                <RefreshCw size={13} className={resendingCode ? "animate-spin" : ""} />
+                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend reset email"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(false)
+                  setForgotStep("request")
+                  setError("")
+                  setSuccessNotice("")
+                }}
+                className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1 cursor-pointer font-medium"
+              >
+                <ArrowLeft size={13} /> Back to Sign In
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Verification Screen
   if (needsVerification) {
     return (
@@ -591,9 +1050,24 @@ function LoginForm() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--charcoal)" }}>
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold" style={{ color: "var(--charcoal)" }}>
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(true)
+                    setForgotStep("request")
+                    setError("")
+                    setSuccessNotice("")
+                  }}
+                  className="text-xs font-semibold hover:underline cursor-pointer"
+                  style={{ color: "var(--burgundy)" }}
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#9B8A7A" }} />
                 <input
