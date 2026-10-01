@@ -201,9 +201,25 @@ function LoginForm() {
         return
       }
 
-      if (status === "needs_second_factor") {
-        console.log("[LOGIN ATTEMPT] Verification status: 2FA required")
-        setError("Two-factor authentication required. Please verify your second factor.")
+      if (status === "needs_second_factor" || status === "needs_client_trust") {
+        console.log(`[LOGIN ATTEMPT] Verification status: ${status} (device trust / 2FA required)`)
+        const secondFactors = result?.supportedSecondFactors || (signIn as any).supportedSecondFactors || []
+        const emailSecondFactor = secondFactors.find((f: any) => f.strategy === "email_code")
+
+        try {
+          if (emailSecondFactor || typeof (signIn as any).prepareSecondFactor === "function") {
+            await (signIn as any).prepareSecondFactor({
+              strategy: "email_code",
+            })
+          } else if ((signIn as any).mfa?.sendEmailCode) {
+            await (signIn as any).mfa.sendEmailCode()
+          }
+        } catch (prepErr) {
+          console.warn("[LOGIN ATTEMPT] Second factor code prepare notice:", prepErr)
+        }
+
+        setNeedsVerification(true)
+        setSuccessNotice(`For your device security, a verification code was sent to ${cleanEmail}. Please enter it below.`)
         return
       }
 
@@ -235,15 +251,34 @@ function LoginForm() {
       console.log("[LOGIN ATTEMPT] Submitting verification code...")
       let verifyResult: any = null
 
-      if (typeof (signIn as any).attemptFirstFactor === "function") {
-        verifyResult = await (signIn as any).attemptFirstFactor({
-          strategy: "email_code",
-          code: verificationCode.trim(),
-        })
-      } else if ((signIn as any).emailCode?.verifyCode) {
-        verifyResult = await (signIn as any).emailCode.verifyCode({
-          code: verificationCode.trim(),
-        })
+      const currentStatus = (signIn as any).status
+      if (currentStatus === "needs_second_factor" || currentStatus === "needs_client_trust") {
+        if (typeof (signIn as any).attemptSecondFactor === "function") {
+          try {
+            verifyResult = await (signIn as any).attemptSecondFactor({
+              strategy: "email_code",
+              code: verificationCode.trim(),
+            })
+          } catch (mfaErr: any) {
+            console.warn("[LOGIN ATTEMPT] attemptSecondFactor error:", mfaErr)
+            if (mfaErr?.errors?.[0]?.code === "form_code_incorrect" || mfaErr?.code === "form_code_incorrect") {
+              throw mfaErr
+            }
+          }
+        }
+      }
+
+      if (!verifyResult) {
+        if (typeof (signIn as any).attemptFirstFactor === "function") {
+          verifyResult = await (signIn as any).attemptFirstFactor({
+            strategy: "email_code",
+            code: verificationCode.trim(),
+          })
+        } else if ((signIn as any).emailCode?.verifyCode) {
+          verifyResult = await (signIn as any).emailCode.verifyCode({
+            code: verificationCode.trim(),
+          })
+        }
       }
 
       if (verifyResult && "error" in verifyResult && verifyResult.error) {
@@ -299,18 +334,29 @@ function LoginForm() {
     setSuccessNotice("")
 
     try {
-      const factors = signIn.supportedFirstFactors || []
-      const emailFactor: any = factors.find((f: any) => f.strategy === "email_code")
+      const currentStatus = (signIn as any).status
+      if (currentStatus === "needs_second_factor" || currentStatus === "needs_client_trust") {
+        if (typeof (signIn as any).prepareSecondFactor === "function") {
+          await (signIn as any).prepareSecondFactor({
+            strategy: "email_code",
+          })
+        } else if ((signIn as any).mfa?.sendEmailCode) {
+          await (signIn as any).mfa.sendEmailCode()
+        }
+      } else {
+        const factors = signIn.supportedFirstFactors || []
+        const emailFactor: any = factors.find((f: any) => f.strategy === "email_code")
 
-      if (typeof (signIn as any).prepareFirstFactor === "function") {
-        await (signIn as any).prepareFirstFactor({
-          strategy: "email_code",
-          emailAddressId: emailFactor?.emailAddressId,
-        })
-      } else if ((signIn as any).emailCode?.sendCode) {
-        await (signIn as any).emailCode.sendCode({
-          emailAddressId: emailFactor?.emailAddressId,
-        })
+        if (typeof (signIn as any).prepareFirstFactor === "function") {
+          await (signIn as any).prepareFirstFactor({
+            strategy: "email_code",
+            emailAddressId: emailFactor?.emailAddressId,
+          })
+        } else if ((signIn as any).emailCode?.sendCode) {
+          await (signIn as any).emailCode.sendCode({
+            emailAddressId: emailFactor?.emailAddressId,
+          })
+        }
       }
 
       setSuccessNotice("A new verification code has been sent to your email.")
