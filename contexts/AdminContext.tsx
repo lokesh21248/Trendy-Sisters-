@@ -689,6 +689,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = createClient()
         await (supabase as any).from("categories").update(updates).eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
       } catch (e) {}
       showToast("Category Updated", "Category details saved.", "success")
     },
@@ -714,6 +715,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = createClient()
         await (supabase as any).from("categories").insert([newCat])
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
       } catch (e) {}
       showToast("Category Created", `"${newCat.name}" added to categories.`, "success")
     },
@@ -726,6 +728,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = createClient()
         await (supabase as any).from("categories").delete().eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
       } catch (e) {}
       showToast("Category Removed", "Category deleted from database.", "info")
     },
@@ -739,6 +742,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = createClient()
         await (supabase as any).from("collections").update(updates).eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
       } catch (e) {}
       showToast("Curated Edit Updated", "Collection details saved.", "success")
     },
@@ -764,6 +768,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = createClient()
         await (supabase as any).from("collections").insert([newCol])
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
       } catch (e) {}
       showToast("Curated Edit Created", `"${newCol.name}" added to showcases.`, "success")
     },
@@ -776,6 +781,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = createClient()
         await (supabase as any).from("collections").delete().eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
       } catch (e) {}
       showToast("Curated Edit Removed", "Collection deleted from database.", "info")
     },
@@ -789,6 +795,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = createClient()
         await (supabase as any).from("banners").update(updates).eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
       } catch (e) {}
       showToast("Banner Updated", "Hero banner updated successfully.", "success")
     },
@@ -814,6 +821,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = createClient()
         await (supabase as any).from("banners").insert([newBanner])
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
       } catch (e) {}
       showToast("Banner Created", "Hero slide added to carousel.", "success")
     },
@@ -826,6 +834,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = createClient()
         await supabase.from("banners").delete().eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
       } catch (e) {}
       showToast("Banner Removed", "Slide deleted from hero section.", "info")
     },
