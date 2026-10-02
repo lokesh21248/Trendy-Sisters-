@@ -304,37 +304,35 @@ export default function CartPage() {
                     e.preventDefault()
                     handleApplyCoupon()
                   }}
-                  className="flex flex-col sm:flex-row gap-2.5 w-full min-w-0"
+                  className="relative flex items-center w-full min-w-0"
                 >
-                  <div className="relative flex-1 min-w-0">
-                    <Tag
-                      size={16}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                      style={{ color: "var(--gold)" }}
-                    />
-                    <input
-                      type="text"
-                      value={couponInput}
-                      onChange={(e) => {
-                        setCouponInput(e.target.value.toUpperCase())
-                        if (couponMessage) setCouponMessage(null)
-                      }}
-                      placeholder="Enter coupon code (e.g. TRENDY10)"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium uppercase placeholder:normal-case placeholder:font-normal outline-none box-border transition-all focus:ring-2 focus:ring-[#651F35]/20"
-                      style={{
-                        backgroundColor: "var(--ivory-dark)",
-                        border: "1px solid var(--border)",
-                        color: "var(--charcoal)",
-                      }}
-                    />
-                  </div>
+                  <Tag
+                    size={16}
+                    className="absolute left-3.5 pointer-events-none"
+                    style={{ color: "var(--gold)" }}
+                  />
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={(e) => {
+                      setCouponInput(e.target.value.toUpperCase())
+                      if (couponMessage) setCouponMessage(null)
+                    }}
+                    placeholder="Enter coupon code (e.g. TRENDY10)"
+                    className="w-full pl-10 pr-[85px] py-2.5 rounded-xl text-xs sm:text-sm font-medium uppercase placeholder:normal-case placeholder:font-normal outline-none box-border transition-all focus:ring-2 focus:ring-[#651F35]/20"
+                    style={{
+                      backgroundColor: "var(--ivory-dark)",
+                      border: "1px solid var(--border)",
+                      color: "var(--charcoal)",
+                    }}
+                  />
                   <button
                     type="submit"
                     disabled={!couponInput.trim() || isApplying}
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-semibold text-xs sm:text-sm text-white shrink-0 transition-all hover:opacity-95 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    className="absolute right-1.5 top-1.5 bottom-1.5 px-4 rounded-lg font-semibold text-xs sm:text-sm text-white shrink-0 transition-all hover:opacity-95 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                     style={{ backgroundColor: "var(--burgundy)" }}
                   >
-                    {isApplying ? "Checking..." : "Apply"}
+                    {isApplying ? "..." : "Apply"}
                   </button>
                 </form>
               )}
