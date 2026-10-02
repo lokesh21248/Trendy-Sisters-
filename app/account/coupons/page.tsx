@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -26,11 +26,9 @@ export default function CouponsPage() {
   const [customCode, setCustomCode] = useState("")
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
-  import("react").then((React) => {
-    React.useEffect(() => {
-      getActiveCoupons().then(setAvailableCoupons)
-    }, [])
-  })
+  useEffect(() => {
+    getActiveCoupons().then(setAvailableCoupons)
+  }, [])
 
   function handleCopy(code: string) {
     navigator.clipboard.writeText(code)
