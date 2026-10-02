@@ -1,4 +1,4 @@
-﻿import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@supabase/supabase-js"
 import { Database } from "@/types/database"
 import { Coupon } from "@/types/database"
 
@@ -6,12 +6,14 @@ export async function getActiveCoupons() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://efirqiluvuerurnpptfm.supabase.co"
   const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_xHWxpegsG3AQTZt4mqubiQ_it5Go61G"
   
-  const supabase = createClient<Database>(supabaseUrl, apiKey)
+  const supabase = createClient(supabaseUrl, apiKey)
   
-  const { data, error } = await supabase
+  const { data: rawData, error } = await (supabase as any)
     .from("coupons")
     .select("*")
     .eq("is_active", true)
+
+  const data = rawData as Coupon[] | null
 
   if (error) {
     console.error("Error fetching coupons:", error)

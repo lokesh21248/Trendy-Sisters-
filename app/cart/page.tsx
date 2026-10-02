@@ -19,7 +19,7 @@ export default function CartPage() {
   const { items, itemCount, total, updateQuantity, removeItem, loading } = useCart()
 
   const [couponInput, setCouponInput] = useState("")
-  const [appliedCoupon, setAppliedCoupon] = useState<{code: string; discount: number; freeShipping?: boolean} | null>(null)
+  const [appliedCoupon, setAppliedCoupon] = useState<{code: string; discount: number; freeShipping?: boolean; description?: string} | null>(null)
   const [couponMessage, setCouponMessage] = useState<{ text: string; type: "error" | "success" } | null>(null)
   const [showCouponList, setShowCouponList] = useState(false)
   const [isApplying, setIsApplying] = useState(false)
@@ -83,7 +83,8 @@ export default function CartPage() {
     const appliedObj = {
         code: cleanCode,
         discount: result.discount,
-        freeShipping: false
+        freeShipping: false,
+        description: result.coupon?.description || "Special offer"
     }
 
     setAppliedCoupon(appliedObj)

@@ -563,6 +563,7 @@ export interface Database {
           is_approved?: boolean
           updated_at?: string
       }
+      }
       coupons: {
         Row: {
           id: string

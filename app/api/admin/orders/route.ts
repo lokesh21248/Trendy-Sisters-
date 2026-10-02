@@ -221,7 +221,8 @@ export async function POST(req: NextRequest) {
     let finalSubtotal = Number(subtotal) || 0
 
     if (coupon_code) {
-       const { data: couponData } = await supabase.from('coupons').select('*').eq('code', coupon_code.toUpperCase()).maybeSingle()
+       const { data: rawCouponData } = await (supabase as any).from('coupons').select('*').eq('code', coupon_code.toUpperCase()).maybeSingle()
+       const couponData = rawCouponData as any
        if (couponData && couponData.is_active) {
           // re-calculate the product savings + coupon savings
           // Wait, 'discount' passed from client includes product savings + coupon discount.
@@ -238,7 +239,7 @@ export async function POST(req: NextRequest) {
             if (couponData.usage_limit && couponData.times_used >= couponData.usage_limit) {
                 // invalid coupon limit
             } else {
-                await supabase.from('coupons').update({ times_used: couponData.times_used + 1 }).eq('id', couponData.id)
+                await (supabase as any).from('coupons').update({ times_used: couponData.times_used + 1 }).eq('id', couponData.id)
             }
           }
        }
