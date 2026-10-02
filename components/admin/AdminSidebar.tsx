@@ -17,6 +17,9 @@ import {
   Sparkles,
   Database,
   X,
+  Palette,
+  Scissors,
+  CalendarHeart,
 } from "lucide-react"
 
 interface AdminSidebarProps {
@@ -72,6 +75,27 @@ export function AdminSidebar({ mobileOpen, setMobileOpen }: AdminSidebarProps) {
       label: "Hero Banners",
       href: "/admin/banners",
       icon: ImageIcon,
+      badge: null,
+      isStar: false,
+    },
+    {
+      label: "Fabric Materials",
+      href: "/admin/fabric-materials",
+      icon: Scissors,
+      badge: null,
+      isStar: false,
+    },
+    {
+      label: "Color Shades",
+      href: "/admin/color-shades",
+      icon: Palette,
+      badge: null,
+      isStar: false,
+    },
+    {
+      label: "Occasions",
+      href: "/admin/occasions",
+      icon: CalendarHeart,
       badge: null,
       isStar: false,
     },

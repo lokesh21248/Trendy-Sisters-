@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { ProductCard, ProductCardSkeleton } from "@/components/products/ProductCard"
 import { SlidersHorizontal, ChevronDown, X, Check, Search } from "lucide-react"
 import { sanitizeProduct } from "@/lib/image-utils"
-import type { ProductWithImages, Category } from "@/types"
+import type { ProductWithImages, Category, FabricMaterial, Occasion } from "@/types"
 
 const sortOptions = [
   { label: "Featured", value: "featured" },
@@ -15,9 +15,6 @@ const sortOptions = [
   { label: "Best Selling", value: "bestseller" },
 ]
 
-const occasions = ["Wedding", "Festive", "Party", "Office", "Casual"]
-const fabrics = ["Pure Silk", "Banarasi Silk", "Cotton", "Georgette", "Chiffon", "Linen", "Chanderi"]
-
 interface ShopPageProps {
   searchParams: Promise<{ [key: string]: string | undefined }>
 }
@@ -26,6 +23,8 @@ export function ShopPage({ searchParams }: ShopPageProps) {
   const params = use(searchParams)
   const [products, setProducts] = useState<ProductWithImages[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [fabrics, setFabrics] = useState<FabricMaterial[]>([])
+  const [occasions, setOccasions] = useState<Occasion[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -51,10 +50,16 @@ export function ShopPage({ searchParams }: ShopPageProps) {
     return () => clearTimeout(timer)
   }, [priceRange])
 
-  // Load categories once
+  // Load master data once
   useEffect(() => {
     supabase.from("categories").select("*").eq("is_active", true).order("display_order")
       .then(({ data }) => setCategories(data || []))
+    
+    supabase.from("fabric_materials").select("*").eq("is_active", true).order("sort_order")
+      .then(({ data }) => setFabrics(data || []))
+      
+    supabase.from("occasions").select("*").eq("is_active", true).order("sort_order")
+      .then(({ data }) => setOccasions(data || []))
   }, [supabase])
 
   // Build and run query
@@ -63,7 +68,7 @@ export function ShopPage({ searchParams }: ShopPageProps) {
     try {
       let query = supabase
         .from("products")
-        .select("*, product_images(*)", { count: "exact" })
+        .select("*, product_images(*), fabric_materials(*), color_shades(*), occasions(*)", { count: "exact" })
         .eq("is_active", true)
 
       // Search
@@ -76,8 +81,8 @@ export function ShopPage({ searchParams }: ShopPageProps) {
 
       // Local filters
       if (selectedCategories.length > 0) query = query.in("category_id", selectedCategories)
-      if (selectedOccasions.length > 0) query = query.in("occasion", selectedOccasions)
-      if (selectedFabrics.length > 0) query = query.in("fabric", selectedFabrics)
+      if (selectedOccasions.length > 0) query = query.in("occasion_id", selectedOccasions)
+      if (selectedFabrics.length > 0) query = query.in("fabric_material_id", selectedFabrics)
       query = query.gte("price", debouncedPriceRange[0]).lte("price", debouncedPriceRange[1])
 
       // Sort
@@ -165,18 +170,18 @@ export function ShopPage({ searchParams }: ShopPageProps) {
         <h3 className="font-semibold text-sm mb-3" style={{ color: "var(--charcoal)" }}>Fabric</h3>
         <div className="space-y-2">
           {fabrics.map((f) => (
-            <label key={f} className="flex items-center gap-2 cursor-pointer group">
+            <label key={f.id} className="flex items-center gap-2 cursor-pointer group">
               <div
                 className="w-4 h-4 rounded flex items-center justify-center border transition-all"
                 style={{
-                  borderColor: selectedFabrics.includes(f) ? "var(--burgundy)" : "var(--border)",
-                  backgroundColor: selectedFabrics.includes(f) ? "var(--burgundy)" : "transparent",
+                  borderColor: selectedFabrics.includes(f.id) ? "var(--burgundy)" : "var(--border)",
+                  backgroundColor: selectedFabrics.includes(f.id) ? "var(--burgundy)" : "transparent",
                 }}
-                onClick={() => toggleFilter(selectedFabrics, setSelectedFabrics, f)}
+                onClick={() => toggleFilter(selectedFabrics, setSelectedFabrics, f.id)}
               >
-                {selectedFabrics.includes(f) && <Check size={10} color="white" />}
+                {selectedFabrics.includes(f.id) && <Check size={10} color="white" />}
               </div>
-              <span className="text-sm" style={{ color: "var(--charcoal)" }}>{f}</span>
+              <span className="text-sm" style={{ color: "var(--charcoal)" }}>{f.name}</span>
             </label>
           ))}
         </div>
@@ -188,16 +193,16 @@ export function ShopPage({ searchParams }: ShopPageProps) {
         <div className="flex flex-wrap gap-2">
           {occasions.map((occ) => (
             <button
-              key={occ}
-              onClick={() => toggleFilter(selectedOccasions, setSelectedOccasions, occ)}
+              key={occ.id}
+              onClick={() => toggleFilter(selectedOccasions, setSelectedOccasions, occ.id)}
               className="px-3 py-1 rounded-full text-xs font-medium border transition-all"
               style={{
-                borderColor: selectedOccasions.includes(occ) ? "var(--burgundy)" : "var(--border)",
-                backgroundColor: selectedOccasions.includes(occ) ? "var(--burgundy)" : "transparent",
-                color: selectedOccasions.includes(occ) ? "white" : "var(--charcoal)",
+                borderColor: selectedOccasions.includes(occ.id) ? "var(--burgundy)" : "var(--border)",
+                backgroundColor: selectedOccasions.includes(occ.id) ? "var(--burgundy)" : "transparent",
+                color: selectedOccasions.includes(occ.id) ? "white" : "var(--charcoal)",
               }}
             >
-              {occ}
+              {occ.name}
             </button>
           ))}
         </div>

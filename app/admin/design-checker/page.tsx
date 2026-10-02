@@ -31,9 +31,6 @@ import {
 } from "lucide-react"
 import {
   FilterPill,
-  SAREE_COLOR_PALETTES,
-  SAREE_FABRICS,
-  SAREE_OCCASIONS,
   IMAGE_ANGLE_LABELS,
   ProductWithDetails,
 } from "@/types/admin"
@@ -52,6 +49,9 @@ function DesignCheckerContent() {
     products,
     categories,
     collections,
+    fabricMaterials,
+    colorShades,
+    occasions,
     selectedAuditProductId,
     setSelectedAuditProductId,
     auditFilter,
@@ -73,9 +73,9 @@ function DesignCheckerContent() {
   const [formData, setFormData] = useState({
     name: "",
     sku: "",
-    fabric: "",
-    color: "",
-    occasion: "",
+    fabric_material_id: "",
+    color_shade_id: "",
+    occasion_id: "",
     price: 0,
     mrp: 0,
     stock: 0,
@@ -146,9 +146,9 @@ function DesignCheckerContent() {
       setFormData({
         name: currentSaree.name || "",
         sku: currentSaree.sku || "",
-        fabric: currentSaree.fabric || "",
-        color: currentSaree.color || "",
-        occasion: currentSaree.occasion || "",
+        fabric_material_id: currentSaree.fabric_material_id || "",
+        color_shade_id: currentSaree.color_shade_id || "",
+        occasion_id: currentSaree.occasion_id || "",
         price: Number(currentSaree.price) || 0,
         mrp: Number(currentSaree.mrp) || 0,
         stock: Number(currentSaree.stock) || 0,
@@ -224,8 +224,8 @@ function DesignCheckerContent() {
     "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&q=80"
 
   // Selected color swatch hex
-  const activeColorSwatch = SAREE_COLOR_PALETTES.find(
-    (c) => c.name.toLowerCase() === formData.color?.toLowerCase()
+  const activeColorSwatch = colorShades.find(
+    (c) => c.id === formData.color_shade_id
   )
 
   return (
@@ -381,11 +381,11 @@ function DesignCheckerContent() {
                   </span>
                   <span className="text-xs text-[#8C8074]">·</span>
                   <span className="text-xs font-medium text-[#6B5E51]">
-                    {formData.fabric || "Weave Undefined"}
+                    {fabricMaterials.find(f => f.id === formData.fabric_material_id)?.name || "Weave Undefined"}
                   </span>
                   <span className="text-xs text-[#8C8074]">·</span>
                   <span className="text-xs font-medium text-[#6B5E51]">
-                    {formData.occasion || "Occasion Undefined"}
+                    {occasions.find(o => o.id === formData.occasion_id)?.name || "Occasion Undefined"}
                   </span>
                 </div>
                 <h3 className="font-serif text-xl font-bold text-[#25201D]">
@@ -452,7 +452,7 @@ function DesignCheckerContent() {
                         Fabric (+20%)
                       </div>
                       <div className="text-xs font-bold truncate">
-                        {formData.fabric || "Missing"}
+                        {fabricMaterials.find(f => f.id === formData.fabric_material_id)?.name || "Missing"}
                       </div>
                     </div>
                   </div>
@@ -475,7 +475,7 @@ function DesignCheckerContent() {
                         Color (+20%)
                       </div>
                       <div className="text-xs font-bold truncate">
-                        {formData.color || "Missing"}
+                        {colorShades.find(c => c.id === formData.color_shade_id)?.name || "Missing"}
                       </div>
                     </div>
                   </div>
@@ -498,7 +498,7 @@ function DesignCheckerContent() {
                         Occasion (+20%)
                       </div>
                       <div className="text-xs font-bold truncate">
-                        {formData.occasion || "Missing"}
+                        {occasions.find(o => o.id === formData.occasion_id)?.name || "Missing"}
                       </div>
                     </div>
                   </div>
@@ -650,14 +650,14 @@ function DesignCheckerContent() {
                     </div>
 
                     <div className="flex flex-wrap gap-1.5">
-                      {SAREE_FABRICS.map((fab) => {
-                        const isSelected = formData.fabric === fab
+                      {fabricMaterials.map((fab) => {
+                        const isSelected = formData.fabric_material_id === fab.id
                         return (
                           <button
-                            key={fab}
+                            key={fab.id}
                             type="button"
                             onClick={() =>
-                              setFormData({ ...formData, fabric: fab })
+                              setFormData({ ...formData, fabric_material_id: fab.id })
                             }
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
                               isSelected
@@ -665,7 +665,7 @@ function DesignCheckerContent() {
                                 : "bg-[#FAF7F2] text-[#4A3E31] border-[#E8DCC8] hover:border-[#B88A3B]"
                             }`}
                           >
-                            {fab}
+                            {fab.name}
                           </button>
                         )
                       })}
@@ -680,40 +680,52 @@ function DesignCheckerContent() {
                         <span>Primary Color Palette Swatch</span>
                       </label>
                       <div className="flex items-center gap-2">
-                        {activeColorSwatch && (
-                          <span
-                            className="w-3.5 h-3.5 rounded-full border border-gray-300 shadow-xs"
-                            style={{ backgroundColor: activeColorSwatch.hex }}
-                          />
-                        )}
-                        <span className="text-xs font-bold text-[#651F35]">
-                          {formData.color || "None Selected"}
-                        </span>
+                        {(() => {
+                          const activeColor = colorShades.find(c => c.id === formData.color_shade_id)
+                          return activeColor ? (
+                            <>
+                              {activeColor.hex_code && (
+                                <span
+                                  className="w-3.5 h-3.5 rounded-full border border-gray-300 shadow-xs"
+                                  style={{ backgroundColor: activeColor.hex_code }}
+                                />
+                              )}
+                              <span className="text-xs font-bold text-[#651F35]">
+                                {activeColor.name}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-xs font-bold text-[#651F35]">None Selected</span>
+                          )
+                        })()}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                      {SAREE_COLOR_PALETTES.map((swatch) => {
-                        const isSelected =
-                          formData.color?.toLowerCase() === swatch.name.toLowerCase()
+                      {colorShades.map((swatch) => {
+                        const isSelected = formData.color_shade_id === swatch.id
                         return (
                           <button
-                            key={swatch.name}
+                            key={swatch.id}
                             type="button"
                             onClick={() =>
-                              setFormData({ ...formData, color: swatch.name })
+                              setFormData({ ...formData, color_shade_id: swatch.id })
                             }
-                            title={`${swatch.name} (${swatch.hex})`}
+                            title={`${swatch.name} ${swatch.hex_code ? `(${swatch.hex_code})` : ""}`}
                             className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all cursor-pointer ${
                               isSelected
                                 ? "bg-white border-[#D4AF37] ring-2 ring-[#D4AF37]/40 shadow-xs"
                                 : "bg-[#FAF7F2] border-[#E8DCC8] hover:bg-white"
                             }`}
                           >
-                            <span
-                              className="w-5 h-5 rounded-full border border-black/10 shadow-inner shrink-0"
-                              style={{ backgroundColor: swatch.hex }}
-                            />
+                            {swatch.hex_code ? (
+                              <span
+                                className="w-5 h-5 rounded-full border border-black/10 shadow-inner shrink-0"
+                                style={{ backgroundColor: swatch.hex_code }}
+                              />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full border border-black/10 shadow-inner shrink-0 bg-gray-200" />
+                            )}
                             <span className="text-[10px] text-[#25201D] truncate w-full text-center font-medium">
                               {swatch.name.split(" ")[0]}
                             </span>
@@ -731,14 +743,14 @@ function DesignCheckerContent() {
                     </label>
 
                     <div className="flex flex-wrap gap-2">
-                      {SAREE_OCCASIONS.map((occ) => {
-                        const isSelected = formData.occasion === occ
+                      {occasions.map((occ) => {
+                        const isSelected = formData.occasion_id === occ.id
                         return (
                           <button
-                            key={occ}
+                            key={occ.id}
                             type="button"
                             onClick={() =>
-                              setFormData({ ...formData, occasion: occ })
+                              setFormData({ ...formData, occasion_id: occ.id })
                             }
                             className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                               isSelected
@@ -746,7 +758,7 @@ function DesignCheckerContent() {
                                 : "bg-[#FAF7F2] text-[#6B5E51] border-[#E8DCC8] hover:border-[#D4AF37]"
                             }`}
                           >
-                            {occ}
+                            {occ.name}
                           </button>
                         )
                       })}
@@ -1206,11 +1218,11 @@ function DesignCheckerContent() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-semibold text-[#8B6E32] uppercase tracking-wider">
-                        {formData.fabric || "Pure Saree"}
+                        {fabricMaterials.find(f => f.id === formData.fabric_material_id)?.name || "Pure Saree"}
                       </span>
                       <span className="text-xs text-gray-300">·</span>
                       <span className="text-[11px] text-[#6B5E51]">
-                        {formData.occasion || "Exclusive"}
+                        {occasions.find(o => o.id === formData.occasion_id)?.name || "Exclusive"}
                       </span>
                     </div>
 
@@ -1219,10 +1231,10 @@ function DesignCheckerContent() {
                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#FAF7F2] border border-[#E8DCC8]">
                         <span
                           className="w-2.5 h-2.5 rounded-full border border-black/10"
-                          style={{ backgroundColor: activeColorSwatch.hex }}
+                          style={{ backgroundColor: activeColorSwatch.hex_code || "#CCCCCC" }}
                         />
                         <span className="text-[10px] font-medium text-[#25201D]">
-                          {formData.color}
+                          {colorShades.find(c => c.id === formData.color_shade_id)?.name || "Color"}
                         </span>
                       </div>
                     )}

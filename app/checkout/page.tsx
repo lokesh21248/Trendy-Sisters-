@@ -219,6 +219,7 @@ export default function CheckoutPage() {
         })),
         subtotal,
         discount: savings + couponDiscount,
+        coupon_code: appliedCoupon?.code || null,
         shipping,
         total: finalTotal,
         payment_method: paymentMethod,

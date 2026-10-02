@@ -39,7 +39,7 @@ export function SearchBar() {
         const [{ data: products }, { data: categories }] = await Promise.all([
           supabase
             .from("products")
-            .select("id, name, slug, fabric, product_images(image_url)")
+            .select("id, name, slug, fabric, product_images(image_url), fabric_materials(name), color_shades(name), occasions(name)")
             .ilike("name", `%${queryLower}%`)
             .eq("is_active", true)
             .limit(5),

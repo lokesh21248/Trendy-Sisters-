@@ -105,6 +105,102 @@ export interface Database {
           updated_at?: string
         }
       }
+      fabric_materials: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          description: string | null
+          is_active: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          description?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          description?: string | null
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+      }
+      color_shades: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          hex_code: string | null
+          description: string | null
+          is_active: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          hex_code?: string | null
+          description?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          hex_code?: string | null
+          description?: string | null
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+      }
+      occasions: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          description: string | null
+          is_active: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          description?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          description?: string | null
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+      }
       products: {
         Row: {
           id: string
@@ -121,6 +217,9 @@ export interface Database {
           fabric: string | null
           color: string | null
           occasion: string | null
+          fabric_material_id: string | null
+          color_shade_id: string | null
+          occasion_id: string | null
           stock: number
           is_new: boolean
           is_bestseller: boolean
@@ -144,6 +243,9 @@ export interface Database {
           fabric?: string | null
           color?: string | null
           occasion?: string | null
+          fabric_material_id?: string | null
+          color_shade_id?: string | null
+          occasion_id?: string | null
           stock?: number
           is_new?: boolean
           is_bestseller?: boolean
@@ -167,6 +269,9 @@ export interface Database {
           fabric?: string | null
           color?: string | null
           occasion?: string | null
+          fabric_material_id?: string | null
+          color_shade_id?: string | null
+          occasion_id?: string | null
           stock?: number
           is_new?: boolean
           is_bestseller?: boolean
@@ -457,6 +562,51 @@ export interface Database {
           comment?: string | null
           is_approved?: boolean
           updated_at?: string
+      }
+      coupons: {
+        Row: {
+          id: string
+          code: string
+          description: string | null
+          discount_type: 'percentage' | 'fixed'
+          discount_value: number
+          min_order_value: number
+          max_discount_amount: number | null
+          usage_limit: number | null
+          times_used: number
+          is_active: boolean
+          expires_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          description?: string | null
+          discount_type: 'percentage' | 'fixed'
+          discount_value: number
+          min_order_value?: number
+          max_discount_amount?: number | null
+          usage_limit?: number | null
+          times_used?: number
+          is_active?: boolean
+          expires_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          description?: string | null
+          discount_type?: 'percentage' | 'fixed'
+          discount_value?: number
+          min_order_value?: number
+          max_discount_amount?: number | null
+          usage_limit?: number | null
+          times_used?: number
+          is_active?: boolean
+          expires_at?: string | null
+          updated_at?: string
         }
       }
     }
@@ -481,4 +631,8 @@ export type Order = Database["public"]["Tables"]["orders"]["Row"]
 export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"]
 export type Review = Database["public"]["Tables"]["reviews"]["Row"]
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+export type FabricMaterial = Database["public"]["Tables"]["fabric_materials"]["Row"]
+export type ColorShade = Database["public"]["Tables"]["color_shades"]["Row"]
+export type Occasion = Database["public"]["Tables"]["occasions"]["Row"]
+export type Coupon = Database["public"]["Tables"]["coupons"]["Row"]
 

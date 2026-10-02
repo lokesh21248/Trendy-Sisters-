@@ -109,7 +109,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           *,
           products (
             *,
-            product_images (*)
+            product_images (*),
+            fabric_materials (*),
+            color_shades (*),
+            occasions (*)
           )
         `)
         .eq("cart_id", cartId)
@@ -206,7 +209,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: fetched } = await supabase
           .from("products")
-          .select("*, product_images(*)")
+          .select("*, product_images(*), fabric_materials(*), color_shades(*), occasions(*)")
           .eq("id", productId)
           .single()
         if (fetched) productData = fetched as any

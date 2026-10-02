@@ -13,10 +13,16 @@ export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"]
 export type WishlistItem = Database["public"]["Tables"]["wishlist_items"]["Row"]
 export type Banner = Database["public"]["Tables"]["banners"]["Row"]
 export type Review = Database["public"]["Tables"]["reviews"]["Row"]
+export type FabricMaterial = Database["public"]["Tables"]["fabric_materials"]["Row"]
+export type ColorShade = Database["public"]["Tables"]["color_shades"]["Row"]
+export type Occasion = Database["public"]["Tables"]["occasions"]["Row"]
 
 export type ProductWithImages = Product & {
   product_images: ProductImage[]
   categories?: Category | null
+  fabric_materials?: FabricMaterial | null
+  color_shades?: ColorShade | null
+  occasions?: Occasion | null
 }
 
 export type CartItemWithProduct = CartItem & {

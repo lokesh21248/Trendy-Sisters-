@@ -35,11 +35,13 @@ export function Header() {
         style={{ backgroundColor: "var(--burgundy)", color: "white" }}
         className="w-full text-center py-2 text-xs font-medium tracking-wide"
       >
-        🎉 Free shipping on orders above ₹999 &nbsp;|&nbsp; Use code{" "}
-        <span style={{ color: "var(--gold-light)" }} className="font-bold">
-          TRENDY10
-        </span>{" "}
-        for 10% off your first order
+        🎉 Free shipping on orders above ₹999 &nbsp;|&nbsp;{" "}
+        <Link href="/cart" className="hover:underline">
+          <span style={{ color: "var(--gold-light)" }} className="font-bold">
+            View active coupons
+          </span>{" "}
+          in your cart
+        </Link>
       </div>
 
       {/* Main header */}

@@ -25,7 +25,7 @@ export default function WishlistPage() {
       setLoading(true)
       const { data } = await supabase
         .from("products")
-        .select("*, product_images(*)")
+        .select("*, product_images(*), fabric_materials(*), color_shades(*), occasions(*)")
         .in("id", Array.from(wishlistIds))
         .eq("is_active", true)
 

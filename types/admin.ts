@@ -1,7 +1,7 @@
 import { Database } from "./database"
-import { Product, ProductImage, Category, Collection, Banner, OrderStatus } from "./index"
+import { Product, ProductImage, Category, Collection, Banner, OrderStatus, FabricMaterial, ColorShade, Occasion } from "./index"
 
-export type { Product, ProductImage, Category, Collection, Banner, OrderStatus }
+export type { Product, ProductImage, Category, Collection, Banner, OrderStatus, FabricMaterial, ColorShade, Occasion }
 
 export interface CompletenessCriterion {
   id: string
@@ -30,6 +30,9 @@ export type ProductWithDetails = Product & {
   product_images: ProductImage[]
   category?: Category | null
   collection?: Collection | null
+  fabric_material?: FabricMaterial | null
+  color_shade?: ColorShade | null
+  occasion_data?: Occasion | null
   completeness: DesignCompleteness
 }
 

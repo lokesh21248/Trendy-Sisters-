@@ -149,9 +149,9 @@ export function ProductCard({ product }: ProductCardProps) {
         </h3>
 
         {/* Fabric */}
-        {product.fabric && (
+        {(product.fabric_materials?.name || product.fabric) && (
           <p className="text-[11px] mb-1" style={{ color: "#9B8A7A" }}>
-            {product.fabric}
+            {product.fabric_materials?.name || product.fabric}
           </p>
         )}
 

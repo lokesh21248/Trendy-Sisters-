@@ -22,12 +22,7 @@ import {
   Palette,
   IndianRupee,
 } from "lucide-react"
-import {
-  SAREE_FABRICS,
-  SAREE_OCCASIONS,
-  SAREE_COLOR_PALETTES,
-  ProductWithDetails,
-} from "@/types/admin"
+import { ProductWithDetails } from "@/types/admin"
 import { AdminImageUpload } from "@/components/admin/AdminImageUpload"
 
 export const dynamic = "force-dynamic"
@@ -41,6 +36,9 @@ function AdminProductsContent() {
     products,
     categories,
     collections,
+    fabricMaterials,
+    colorShades,
+    occasions,
     createProduct,
     updateProduct,
     deleteProduct,
@@ -68,9 +66,9 @@ function AdminProductsContent() {
     sku: "",
     category_id: "",
     collection_id: "",
-    fabric: "Pure Silk",
-    color: "Royal Magenta",
-    occasion: "Wedding",
+    fabric_material_id: "",
+    color_shade_id: "",
+    occasion_id: "",
     price: 8999,
     mrp: 12999,
     stock: 20,
@@ -93,8 +91,8 @@ function AdminProductsContent() {
       }
       if (selectedCategory !== "all" && p.category_id !== selectedCategory)
         return false
-      if (selectedFabric !== "all" && p.fabric !== selectedFabric) return false
-      if (selectedOccasion !== "all" && p.occasion !== selectedOccasion)
+      if (selectedFabric !== "all" && p.fabric_material_id !== selectedFabric) return false
+      if (selectedOccasion !== "all" && p.occasion_id !== selectedOccasion)
         return false
       return true
     })
@@ -116,9 +114,9 @@ function AdminProductsContent() {
       sku: "",
       category_id: "",
       collection_id: "",
-      fabric: "Pure Silk",
-      color: "Royal Magenta",
-      occasion: "Wedding",
+      fabric_material_id: "",
+      color_shade_id: "",
+      occasion_id: "",
       price: 8999,
       mrp: 12999,
       stock: 20,
@@ -196,9 +194,9 @@ function AdminProductsContent() {
             className="text-xs px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DCC8] text-[#25201D] focus:ring-1 focus:ring-[#D4AF37] focus:outline-none"
           >
             <option value="all">All Fabrics</option>
-            {SAREE_FABRICS.map((f) => (
-              <option key={f} value={f}>
-                {f}
+            {fabricMaterials.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
               </option>
             ))}
           </select>
@@ -210,9 +208,9 @@ function AdminProductsContent() {
             className="text-xs px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DCC8] text-[#25201D] focus:ring-1 focus:ring-[#D4AF37] focus:outline-none"
           >
             <option value="all">All Occasions</option>
-            {SAREE_OCCASIONS.map((occ) => (
-              <option key={occ} value={occ}>
-                {occ}
+            {occasions.map((occ) => (
+              <option key={occ.id} value={occ.id}>
+                {occ.name}
               </option>
             ))}
           </select>
@@ -288,14 +286,14 @@ function AdminProductsContent() {
                     <td className="py-3.5 px-3">
                       <div className="space-y-1">
                         <div className="text-xs font-semibold text-[#25201D]">
-                          {p.fabric || (
+                          {p.fabric_material?.name || (
                             <span className="text-amber-600">No Fabric</span>
                           )}
                         </div>
                         <div className="flex items-center gap-1.5 text-[11px] text-[#6B5E51]">
-                          <span>{p.color || "No Color"}</span>
+                          <span>{p.color_shade?.name || "No Color"}</span>
                           <span>·</span>
-                          <span>{p.occasion || "No Occasion"}</span>
+                          <span>{p.occasion_data?.name || "No Occasion"}</span>
                         </div>
                       </div>
                     </td>
@@ -491,15 +489,16 @@ function AdminProductsContent() {
                     Fabric
                   </label>
                   <select
-                    value={newSaree.fabric}
+                    value={newSaree.fabric_material_id}
                     onChange={(e) =>
-                      setNewSaree({ ...newSaree, fabric: e.target.value })
+                      setNewSaree({ ...newSaree, fabric_material_id: e.target.value })
                     }
                     className="w-full p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8DCC8] text-[#25201D] focus:ring-1 focus:ring-[#D4AF37] focus:outline-none"
                   >
-                    {SAREE_FABRICS.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
+                    <option value="">-- Select Fabric --</option>
+                    {fabricMaterials.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
                       </option>
                     ))}
                   </select>
@@ -510,14 +509,15 @@ function AdminProductsContent() {
                     Color Shade
                   </label>
                   <select
-                    value={newSaree.color}
+                    value={newSaree.color_shade_id}
                     onChange={(e) =>
-                      setNewSaree({ ...newSaree, color: e.target.value })
+                      setNewSaree({ ...newSaree, color_shade_id: e.target.value })
                     }
                     className="w-full p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8DCC8] text-[#25201D] focus:ring-1 focus:ring-[#D4AF37] focus:outline-none"
                   >
-                    {SAREE_COLOR_PALETTES.map((c) => (
-                      <option key={c.name} value={c.name}>
+                    <option value="">-- Select Color --</option>
+                    {colorShades.map((c) => (
+                      <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
@@ -529,15 +529,16 @@ function AdminProductsContent() {
                     Occasion
                   </label>
                   <select
-                    value={newSaree.occasion}
+                    value={newSaree.occasion_id}
                     onChange={(e) =>
-                      setNewSaree({ ...newSaree, occasion: e.target.value })
+                      setNewSaree({ ...newSaree, occasion_id: e.target.value })
                     }
                     className="w-full p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8DCC8] text-[#25201D] focus:ring-1 focus:ring-[#D4AF37] focus:outline-none"
                   >
-                    {SAREE_OCCASIONS.map((occ) => (
-                      <option key={occ} value={occ}>
-                        {occ}
+                    <option value="">-- Select Occasion --</option>
+                    {occasions.map((occ) => (
+                      <option key={occ.id} value={occ.id}>
+                        {occ.name}
                       </option>
                     ))}
                   </select>
@@ -631,6 +632,9 @@ function AdminProductsContent() {
           product={editingProduct}
           categories={categories}
           collections={collections}
+          fabricMaterials={fabricMaterials}
+          colorShades={colorShades}
+          occasions={occasions}
           onClose={() => setEditingProduct(null)}
           onSave={async (updates) => {
             await updateProduct(editingProduct.id, updates)
@@ -646,12 +650,18 @@ function EditProductModal({
   product,
   categories,
   collections,
+  fabricMaterials,
+  colorShades,
+  occasions,
   onClose,
   onSave,
 }: {
   product: ProductWithDetails
   categories: any[]
   collections: any[]
+  fabricMaterials: any[]
+  colorShades: any[]
+  occasions: any[]
   onClose: () => void
   onSave: (updates: any) => Promise<void>
 }) {
@@ -665,9 +675,9 @@ function EditProductModal({
     sku: product.sku || "",
     category_id: product.category_id || "",
     collection_id: product.collection_id || "",
-    fabric: product.fabric || "Pure Silk",
-    color: product.color || "Royal Magenta",
-    occasion: product.occasion || "Wedding",
+    fabric_material_id: product.fabric_material_id || "",
+    color_shade_id: product.color_shade_id || "",
+    occasion_id: product.occasion_id || "",
     price: product.price || 0,
     mrp: product.mrp || 0,
     stock: product.stock ?? 10,
@@ -827,13 +837,14 @@ function EditProductModal({
                 Fabric
               </label>
               <select
-                value={form.fabric}
-                onChange={(e) => setForm({ ...form, fabric: e.target.value })}
+                value={form.fabric_material_id}
+                onChange={(e) => setForm({ ...form, fabric_material_id: e.target.value })}
                 className="w-full p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8DCC8] text-[#25201D] focus:ring-1 focus:ring-[#D4AF37] focus:outline-none"
               >
-                {SAREE_FABRICS.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
+                <option value="">-- Select Fabric --</option>
+                {fabricMaterials.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
                   </option>
                 ))}
               </select>
@@ -844,12 +855,13 @@ function EditProductModal({
                 Color Palette
               </label>
               <select
-                value={form.color}
-                onChange={(e) => setForm({ ...form, color: e.target.value })}
+                value={form.color_shade_id}
+                onChange={(e) => setForm({ ...form, color_shade_id: e.target.value })}
                 className="w-full p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8DCC8] text-[#25201D] focus:ring-1 focus:ring-[#D4AF37] focus:outline-none"
               >
-                {SAREE_COLOR_PALETTES.map((c) => (
-                  <option key={c.name} value={c.name}>
+                <option value="">-- Select Color --</option>
+                {colorShades.map((c) => (
+                  <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
                 ))}
@@ -861,13 +873,14 @@ function EditProductModal({
                 Occasion
               </label>
               <select
-                value={form.occasion}
-                onChange={(e) => setForm({ ...form, occasion: e.target.value })}
+                value={form.occasion_id}
+                onChange={(e) => setForm({ ...form, occasion_id: e.target.value })}
                 className="w-full p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8DCC8] text-[#25201D] focus:ring-1 focus:ring-[#D4AF37] focus:outline-none"
               >
-                {SAREE_OCCASIONS.map((occ) => (
-                  <option key={occ} value={occ}>
-                    {occ}
+                <option value="">-- Select Occasion --</option>
+                {occasions.map((occ) => (
+                  <option key={occ.id} value={occ.id}>
+                    {occ.name}
                   </option>
                 ))}
               </select>

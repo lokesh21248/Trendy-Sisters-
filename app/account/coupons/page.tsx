@@ -16,99 +16,21 @@ import {
   ChevronUp,
 } from "lucide-react"
 
-interface Coupon {
-  code: string
-  title: string
-  description: string
-  discount: string
-  minOrder: string
-  validUntil: string
-  tag: string
-  terms: string[]
-  isTrending?: boolean
-}
-
-const AVAILABLE_COUPONS: Coupon[] = [
-  {
-    code: "FESTIVE25",
-    title: "Festive Grandeur",
-    description: "Get flat 25% OFF on our handpicked festive & celebration sarees.",
-    discount: "25% OFF",
-    minOrder: "₹2,999",
-    validUntil: "31 Oct 2026",
-    tag: "BESTSELLER",
-    isTrending: true,
-    terms: [
-      "Maximum discount capped at ₹1,000 per order",
-      "Applicable across all Banarasi, Kanjivaram & Designer Sarees",
-      "Cannot be clubbed with other promotional coupons",
-    ],
-  },
-  {
-    code: "WELCOME10",
-    title: "New Shopper Delight",
-    description: "Enjoy 10% instant discount on your initial purchase.",
-    discount: "10% OFF",
-    minOrder: "₹999",
-    validUntil: "Valid Always",
-    tag: "NEW USER",
-    isTrending: false,
-    terms: [
-      "Valid only on your first successful purchase",
-      "No maximum discount limit",
-      "Applicable site-wide across all collections",
-    ],
-  },
-  {
-    code: "BRIDAL15",
-    title: "Bridal & Heritage Edit",
-    description: "Flat 15% OFF on pure silk weaves, bridal sarees, and lehengas.",
-    discount: "15% OFF",
-    minOrder: "₹4,999",
-    validUntil: "15 Nov 2026",
-    tag: "EXCLUSIVE",
-    isTrending: true,
-    terms: [
-      "Applicable exclusively on Pure Silk & Bridal ranges",
-      "Complimentary insured express delivery included",
-      "Valid on prepaid and COD orders",
-    ],
-  },
-  {
-    code: "FREESHIP",
-    title: "Zero Shipping Charges",
-    description: "Free fast shipping to anywhere across India with priority packaging.",
-    discount: "FREE SHIPPING",
-    minOrder: "₹799",
-    validUntil: "Valid Always",
-    tag: "POPULAR",
-    isTrending: false,
-    terms: [
-      "Applicable to all delivery pincodes across India",
-      "Includes premium tamper-proof saree box packaging",
-    ],
-  },
-  {
-    code: "TRENDY500",
-    title: "Flat ₹500 Cashback",
-    description: "Instant ₹500 deduction on cart total for premium wardrobe edits.",
-    discount: "₹500 OFF",
-    minOrder: "₹3,499",
-    validUntil: "20 Oct 2026",
-    tag: "LIMITED TIME",
-    isTrending: false,
-    terms: [
-      "Valid once per account",
-      "Applies directly at checkout",
-    ],
-  },
-]
+import { getActiveCoupons } from "@/lib/coupon-utils"
+import type { Coupon } from "@/types/database"
 
 export default function CouponsPage() {
+  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([])
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [expandedCode, setExpandedCode] = useState<string | null>(null)
   const [customCode, setCustomCode] = useState("")
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+
+  import("react").then((React) => {
+    React.useEffect(() => {
+      getActiveCoupons().then(setAvailableCoupons)
+    }, [])
+  })
 
   function handleCopy(code: string) {
     navigator.clipboard.writeText(code)
@@ -123,11 +45,12 @@ export default function CouponsPage() {
     const clean = customCode.trim().toUpperCase()
     if (!clean) return
 
-    const matched = AVAILABLE_COUPONS.find((c) => c.code === clean)
+    const matched = availableCoupons.find((c) => c.code.toUpperCase() === clean)
     if (matched) {
+      const discountText = matched.discount_type === 'percentage' ? `${matched.discount_value}% OFF` : `₹${matched.discount_value} OFF`
       setTestResult({
         success: true,
-        message: `Success! ${matched.code} is valid: ${matched.discount} on orders above ${matched.minOrder}.`,
+        message: `Success! ${matched.code} is valid: ${discountText} on orders above ₹${matched.min_order_value}.`,
       })
     } else {
       setTestResult({
@@ -206,7 +129,7 @@ export default function CouponsPage() {
         {/* Available Coupons Grid */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-serif text-lg font-bold text-charcoal">Available Vouchers ({AVAILABLE_COUPONS.length})</h2>
+            <h2 className="font-serif text-lg font-bold text-charcoal">Available Vouchers ({availableCoupons.length})</h2>
             <Link href="/shop" className="text-xs font-semibold text-burgundy hover:underline flex items-center gap-1">
               <ShoppingBag size={14} />
               Shop Now
@@ -214,7 +137,10 @@ export default function CouponsPage() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-4 lg:gap-5">
-            {AVAILABLE_COUPONS.map((coupon) => {
+            {availableCoupons.length === 0 && (
+                <p className="text-sm text-gray-500">No active coupons available at this time.</p>
+            )}
+            {availableCoupons.map((coupon) => {
               const isCopied = copiedCode === coupon.code
               const isExpanded = expandedCode === coupon.code
 
@@ -232,16 +158,18 @@ export default function CouponsPage() {
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
                         <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#B88A3B]/15 text-[#B88A3B] mb-1.5">
-                          {coupon.tag}
+                          OFFER
                         </span>
-                        <h3 className="font-serif font-bold text-base text-charcoal">{coupon.title}</h3>
+                        <h3 className="font-serif font-bold text-base text-charcoal">{coupon.code}</h3>
                       </div>
                       <div className="text-right">
-                        <span className="font-serif font-black text-lg text-burgundy">{coupon.discount}</span>
+                        <span className="font-serif font-black text-lg text-burgundy">
+                            {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% OFF` : `₹${coupon.discount_value} OFF`}
+                        </span>
                       </div>
                     </div>
 
-                    <p className="text-xs text-[#9B8A7A] leading-relaxed mb-4">{coupon.description}</p>
+                    <p className="text-xs text-[#9B8A7A] leading-relaxed mb-4">{coupon.description || "Special offer"}</p>
 
                     {/* Code badge with copy action */}
                     <div className="flex items-center justify-between p-2.5 rounded-xl bg-ivory-dark/60 border border-dashed border-[var(--border)] mb-4">
@@ -275,10 +203,12 @@ export default function CouponsPage() {
 
                     {/* Metadata */}
                     <div className="flex items-center justify-between text-[11px] text-[#9B8A7A]">
-                      <span>Min Order: <strong className="text-charcoal">{coupon.minOrder}</strong></span>
-                      <span className="flex items-center gap-1">
-                        <Clock size={11} /> {coupon.validUntil}
-                      </span>
+                      <span>Min Order: <strong className="text-charcoal">₹{coupon.min_order_value}</strong></span>
+                      {coupon.expires_at && (
+                          <span className="flex items-center gap-1">
+                            <Clock size={11} /> {new Date(coupon.expires_at).toLocaleDateString()}
+                          </span>
+                      )}
                     </div>
 
                     {/* T&C Accordion */}
@@ -286,9 +216,11 @@ export default function CouponsPage() {
                       <div className="mt-4 pt-3 border-t border-[var(--border)] text-xs text-[#9B8A7A] space-y-1.5 animate-in fade-in duration-150">
                         <p className="font-semibold text-charcoal text-[11px]">Terms & Conditions:</p>
                         <ul className="list-disc pl-4 space-y-1 text-[11px]">
-                          {coupon.terms.map((term, i) => (
-                            <li key={i}>{term}</li>
-                          ))}
+                          <li>Valid for orders above ₹{coupon.min_order_value}</li>
+                          {coupon.max_discount_amount && (
+                              <li>Maximum discount capped at ₹{coupon.max_discount_amount}</li>
+                          )}
+                          <li>Cannot be clubbed with other promotional coupons</li>
                         </ul>
                       </div>
                     )}

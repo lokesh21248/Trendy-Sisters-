@@ -12,74 +12,23 @@ function formatPrice(p: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(p)
 }
 
-interface AppliedCoupon {
-  code: string
-  title: string
-  discount: number
-  description: string
-  freeShipping?: boolean
-}
-
-const AVAILABLE_COUPONS = [
-  {
-    code: "TRENDY10",
-    title: "First Order Special",
-    description: "Get 10% instant discount on your order",
-    discountPercent: 10,
-    minOrder: 0,
-    badge: "10% OFF",
-  },
-  {
-    code: "WELCOME10",
-    title: "New Shopper Delight",
-    description: "Flat 10% off across all collections",
-    discountPercent: 10,
-    minOrder: 999,
-    badge: "10% OFF",
-  },
-  {
-    code: "FESTIVE25",
-    title: "Festive Grandeur",
-    description: "25% OFF on celebration sarees (max ₹1,000)",
-    discountPercent: 25,
-    maxDiscount: 1000,
-    minOrder: 2999,
-    badge: "25% OFF",
-  },
-  {
-    code: "BRIDAL15",
-    title: "Bridal & Heritage Edit",
-    description: "Flat 15% OFF on pure silk weaves & bridal wear",
-    discountPercent: 15,
-    minOrder: 4999,
-    badge: "15% OFF",
-  },
-  {
-    code: "FREESHIP",
-    title: "Zero Shipping Charges",
-    description: "Free express shipping to any pincode",
-    freeShipping: true,
-    minOrder: 799,
-    badge: "FREE SHIP",
-  },
-  {
-    code: "TRENDY500",
-    title: "Flat ₹500 Off",
-    description: "Instant ₹500 deduction on cart total",
-    flatDiscount: 500,
-    minOrder: 3499,
-    badge: "₹500 OFF",
-  },
-]
+import { getActiveCoupons, validateCoupon, calculateCouponDiscount } from "@/lib/coupon-utils"
+import type { Coupon } from "@/types/database"
 
 export default function CartPage() {
   const { items, itemCount, total, updateQuantity, removeItem, loading } = useCart()
 
   const [couponInput, setCouponInput] = useState("")
-  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null)
+  const [appliedCoupon, setAppliedCoupon] = useState<{code: string; discount: number; freeShipping?: boolean} | null>(null)
   const [couponMessage, setCouponMessage] = useState<{ text: string; type: "error" | "success" } | null>(null)
   const [showCouponList, setShowCouponList] = useState(false)
   const [isApplying, setIsApplying] = useState(false)
+  
+  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([])
+
+  useEffect(() => {
+    getActiveCoupons().then(setAvailableCoupons)
+  }, [])
 
   // Restore applied coupon from session
   useEffect(() => {
@@ -103,25 +52,18 @@ export default function CartPage() {
   let isFreeShipping = false
 
   if (appliedCoupon) {
-    const config = AVAILABLE_COUPONS.find((c) => c.code === appliedCoupon.code)
+    const config = availableCoupons.find((c) => c.code.toUpperCase() === appliedCoupon.code.toUpperCase())
     if (config) {
-      if (config.discountPercent) {
-        let disc = Math.round((total * config.discountPercent) / 100)
-        if (config.maxDiscount) disc = Math.min(disc, config.maxDiscount)
-        couponDiscount = disc
-      } else if (config.flatDiscount) {
-        couponDiscount = Math.min(total, config.flatDiscount)
-      } else if (config.freeShipping) {
-        isFreeShipping = true
-        couponDiscount = baseShipping
-      }
+       couponDiscount = calculateCouponDiscount(config, total)
+       // if we had free shipping logic, it would go here (or inside calculateCouponDiscount)
+       // for now, we follow db schema which just has percentage or fixed
     }
   }
 
   const shipping = isFreeShipping ? 0 : baseShipping
   const grandTotal = Math.max(0, total - (isFreeShipping ? 0 : couponDiscount) + shipping)
 
-  const handleApplyCoupon = (codeToApply?: string) => {
+  const handleApplyCoupon = async (codeToApply?: string) => {
     const cleanCode = (codeToApply || couponInput).trim().toUpperCase()
     if (!cleanCode) {
       setCouponMessage({ text: "Please enter a coupon code.", type: "error" })
@@ -129,58 +71,31 @@ export default function CartPage() {
     }
 
     setIsApplying(true)
-    setTimeout(() => {
-      setIsApplying(false)
-      const found = AVAILABLE_COUPONS.find((c) => c.code === cleanCode)
-
-      if (!found) {
-        setCouponMessage({
-          text: `Coupon "${cleanCode}" is invalid or expired. Try TRENDY10 for 10% off.`,
-          type: "error",
-        })
+    
+    const result = await validateCoupon(cleanCode, total)
+    setIsApplying(false)
+    
+    if (!result.valid) {
+        setCouponMessage({ text: result.error || "Invalid coupon", type: "error" })
         return
-      }
+    }
 
-      if (total < found.minOrder) {
-        setCouponMessage({
-          text: `Coupon "${cleanCode}" requires a minimum order of ${formatPrice(found.minOrder)}. Add ${formatPrice(found.minOrder - total)} more to apply.`,
-          type: "error",
-        })
-        return
-      }
-
-      let calculatedDiscount = 0
-      let freeShip = false
-
-      if (found.discountPercent) {
-        calculatedDiscount = Math.round((total * found.discountPercent) / 100)
-        if (found.maxDiscount) calculatedDiscount = Math.min(calculatedDiscount, found.maxDiscount)
-      } else if (found.flatDiscount) {
-        calculatedDiscount = Math.min(total, found.flatDiscount)
-      } else if (found.freeShipping) {
-        freeShip = true
-        calculatedDiscount = baseShipping
-      }
-
-      const appliedObj: AppliedCoupon = {
+    const appliedObj = {
         code: cleanCode,
-        title: found.title,
-        discount: calculatedDiscount,
-        description: found.description,
-        freeShipping: freeShip,
-      }
+        discount: result.discount,
+        freeShipping: false
+    }
 
-      setAppliedCoupon(appliedObj)
-      setCouponInput("")
-      setCouponMessage({
-        text: `Coupon "${cleanCode}" applied! You saved ${formatPrice(calculatedDiscount)}.`,
-        type: "success",
-      })
+    setAppliedCoupon(appliedObj)
+    setCouponInput("")
+    setCouponMessage({
+    text: `Coupon "${cleanCode}" applied! You saved ${formatPrice(result.discount)}.`,
+    type: "success",
+    })
 
-      try {
-        sessionStorage.setItem("trendy_applied_coupon", JSON.stringify(appliedObj))
-      } catch {}
-    }, 250)
+    try {
+    sessionStorage.setItem("trendy_applied_coupon", JSON.stringify(appliedObj))
+    } catch {}
   }
 
   const handleRemoveCoupon = () => {
@@ -272,9 +187,9 @@ export default function CartPage() {
                           {product?.name}
                         </h3>
                       </Link>
-                      {product?.fabric && (
+                      {(product?.fabric_materials?.name || product?.fabric) && (
                         <p className="text-[11px] sm:text-xs mb-2 line-clamp-1" style={{ color: "#9B8A7A" }}>
-                          {product.fabric}
+                          {product.fabric_materials?.name || product.fabric}
                         </p>
                       )}
                     </div>
@@ -448,7 +363,10 @@ export default function CartPage() {
                     Available Coupons
                   </p>
                   <div className="grid grid-cols-1 gap-2">
-                    {AVAILABLE_COUPONS.map((coupon) => (
+                    {availableCoupons.length === 0 && (
+                        <p className="text-xs text-gray-500">No active coupons available at this time.</p>
+                    )}
+                    {availableCoupons.map((coupon) => (
                       <div
                         key={coupon.code}
                         className="flex items-center justify-between p-2.5 rounded-xl bg-[var(--ivory)] border border-[var(--border)] gap-2 hover:border-[var(--burgundy)] transition-colors"
@@ -459,13 +377,13 @@ export default function CartPage() {
                               {coupon.code}
                             </span>
                             <span className="text-xs font-semibold text-[var(--charcoal)] truncate">
-                              {coupon.title}
+                              {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% OFF` : `₹${coupon.discount_value} OFF`}
                             </span>
                             <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[var(--burgundy)] text-white">
-                              {coupon.badge}
+                              {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% OFF` : `₹${coupon.discount_value} OFF`}
                             </span>
                           </div>
-                          <p className="text-[11px] text-[#9B8A7A] mt-0.5">{coupon.description}</p>
+                          <p className="text-[11px] text-[#9B8A7A] mt-0.5">{coupon.description || "Special Offer"}</p>
                         </div>
                         <button
                           type="button"

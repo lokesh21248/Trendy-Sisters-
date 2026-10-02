@@ -13,6 +13,9 @@ import {
   AdminOrder,
   FilterPill,
   ToastMessage,
+  FabricMaterial,
+  ColorShade,
+  Occasion,
 } from "@/types/admin"
 import { calculateDesignCompleteness } from "@/lib/admin/completeness"
 import { INITIAL_SAMPLE_ORDERS } from "@/lib/admin/sampleData"
@@ -42,6 +45,9 @@ interface AdminContextType {
   categories: Category[]
   collections: Collection[]
   banners: Banner[]
+  fabricMaterials: FabricMaterial[]
+  colorShades: ColorShade[]
+  occasions: Occasion[]
   orders: AdminOrder[]
   loading: boolean
   isSupabaseLive: boolean
@@ -91,6 +97,19 @@ interface AdminContextType {
   updateBanner: (id: string, updates: Partial<Banner>) => void
   createBanner: (data: Partial<Banner>) => void
   deleteBanner: (id: string) => void
+
+  // Master Data Actions
+  updateFabricMaterial: (id: string, updates: Partial<FabricMaterial>) => void
+  createFabricMaterial: (data: Partial<FabricMaterial>) => void
+  deleteFabricMaterial: (id: string) => void
+
+  updateColorShade: (id: string, updates: Partial<ColorShade>) => void
+  createColorShade: (data: Partial<ColorShade>) => void
+  deleteColorShade: (id: string) => void
+
+  updateOccasion: (id: string, updates: Partial<Occasion>) => void
+  createOccasion: (data: Partial<Occasion>) => void
+  deleteOccasion: (id: string) => void
 }
 
 const AdminContext = createContext<AdminContextType | null>(null)
@@ -104,6 +123,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([])
   const [collections, setCollections] = useState<Collection[]>([])
   const [banners, setBanners] = useState<Banner[]>([])
+  const [fabricMaterials, setFabricMaterials] = useState<FabricMaterial[]>([])
+  const [colorShades, setColorShades] = useState<ColorShade[]>([])
+  const [occasions, setOccasions] = useState<Occasion[]>([])
   const [orders, setOrders] = useState<AdminOrder[]>(INITIAL_SAMPLE_ORDERS)
   const [loading, setLoading] = useState(true)
   const [isSupabaseLive, setIsSupabaseLive] = useState(false)
@@ -151,6 +173,22 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         .select("*")
         .order("display_order", { ascending: true })
 
+      // 3.5 Fetch Master Data
+      const { data: dbFabricMaterials } = await supabase
+        .from("fabric_materials")
+        .select("*")
+        .order("sort_order", { ascending: true })
+
+      const { data: dbColorShades } = await supabase
+        .from("color_shades")
+        .select("*")
+        .order("sort_order", { ascending: true })
+
+      const { data: dbOccasions } = await supabase
+        .from("occasions")
+        .select("*")
+        .order("sort_order", { ascending: true })
+
       // 4. Fetch Products directly via server API or Supabase client
       const res = await fetch("/api/admin/products", {
         cache: "no-store",
@@ -173,6 +211,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         setIsSupabaseLive(true)
         const categoryMap = new Map((dbCategories as any[] || []).map((c: any) => [c.id, c]))
         const collectionMap = new Map((dbCollections as any[] || []).map((c: any) => [c.id, c]))
+        const fabricMap = new Map((dbFabricMaterials as any[] || []).map((c: any) => [c.id, c]))
+        const colorMap = new Map((dbColorShades as any[] || []).map((c: any) => [c.id, c]))
+        const occasionMap = new Map((dbOccasions as any[] || []).map((c: any) => [c.id, c]))
 
         const enrichedProducts: ProductWithDetails[] = dbProducts.map((p: any) => {
           const images: ProductImage[] = (p.product_images || []).sort(
@@ -184,6 +225,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             product_images: images,
             category: p.category_id ? categoryMap.get(p.category_id) : null,
             collection: p.collection_id ? collectionMap.get(p.collection_id) : null,
+            fabric_material: p.fabric_material_id ? fabricMap.get(p.fabric_material_id) : null,
+            color_shade: p.color_shade_id ? colorMap.get(p.color_shade_id) : null,
+            occasion_data: p.occasion_id ? occasionMap.get(p.occasion_id) : null,
             completeness,
           }
         })
@@ -198,6 +242,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         if (dbCategories) setCategories(dbCategories)
         if (dbCollections) setCollections(dbCollections)
         if (dbBanners) setBanners(dbBanners)
+        if (dbFabricMaterials) setFabricMaterials(dbFabricMaterials)
+        if (dbColorShades) setColorShades(dbColorShades)
+        if (dbOccasions) setOccasions(dbOccasions)
       }
 
       // 5. Fetch Orders from live Server API / Supabase
@@ -841,6 +888,158 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     [showToast]
   )
 
+  // Master Data Actions
+  // Fabric Materials
+  const updateFabricMaterial = useCallback(
+    async (id: string, updates: Partial<FabricMaterial>) => {
+      setFabricMaterials((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)))
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("fabric_materials").update(updates).eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
+      } catch (e) {}
+      showToast("Updated", "Fabric material updated.", "success")
+    },
+    [showToast]
+  )
+
+  const createFabricMaterial = useCallback(
+    async (data: Partial<FabricMaterial>) => {
+      const newItem: FabricMaterial = {
+        id: "fab-" + Math.random().toString(36).substring(2, 9),
+        name: data.name || "New Fabric",
+        slug: data.slug || (data.name || "fabric").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        description: data.description || null,
+        is_active: data.is_active ?? true,
+        sort_order: fabricMaterials.length + 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      setFabricMaterials((prev) => [...prev, newItem])
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("fabric_materials").insert([newItem])
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
+      } catch (e) {}
+      showToast("Created", "Fabric material added.", "success")
+    },
+    [fabricMaterials, showToast]
+  )
+
+  const deleteFabricMaterial = useCallback(
+    async (id: string) => {
+      setFabricMaterials((prev) => prev.filter((item) => item.id !== id))
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("fabric_materials").delete().eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
+      } catch (e) {}
+      showToast("Removed", "Fabric material deleted.", "info")
+    },
+    [showToast]
+  )
+
+  // Color Shades
+  const updateColorShade = useCallback(
+    async (id: string, updates: Partial<ColorShade>) => {
+      setColorShades((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)))
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("color_shades").update(updates).eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
+      } catch (e) {}
+      showToast("Updated", "Color shade updated.", "success")
+    },
+    [showToast]
+  )
+
+  const createColorShade = useCallback(
+    async (data: Partial<ColorShade>) => {
+      const newItem: ColorShade = {
+        id: "col-" + Math.random().toString(36).substring(2, 9),
+        name: data.name || "New Color",
+        slug: data.slug || (data.name || "color").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        hex_code: data.hex_code || null,
+        description: data.description || null,
+        is_active: data.is_active ?? true,
+        sort_order: colorShades.length + 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      setColorShades((prev) => [...prev, newItem])
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("color_shades").insert([newItem])
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
+      } catch (e) {}
+      showToast("Created", "Color shade added.", "success")
+    },
+    [colorShades, showToast]
+  )
+
+  const deleteColorShade = useCallback(
+    async (id: string) => {
+      setColorShades((prev) => prev.filter((item) => item.id !== id))
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("color_shades").delete().eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
+      } catch (e) {}
+      showToast("Removed", "Color shade deleted.", "info")
+    },
+    [showToast]
+  )
+
+  // Occasions
+  const updateOccasion = useCallback(
+    async (id: string, updates: Partial<Occasion>) => {
+      setOccasions((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)))
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("occasions").update(updates).eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
+      } catch (e) {}
+      showToast("Updated", "Occasion updated.", "success")
+    },
+    [showToast]
+  )
+
+  const createOccasion = useCallback(
+    async (data: Partial<Occasion>) => {
+      const newItem: Occasion = {
+        id: "occ-" + Math.random().toString(36).substring(2, 9),
+        name: data.name || "New Occasion",
+        slug: data.slug || (data.name || "occasion").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        description: data.description || null,
+        is_active: data.is_active ?? true,
+        sort_order: occasions.length + 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      setOccasions((prev) => [...prev, newItem])
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("occasions").insert([newItem])
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
+      } catch (e) {}
+      showToast("Created", "Occasion added.", "success")
+    },
+    [occasions, showToast]
+  )
+
+  const deleteOccasion = useCallback(
+    async (id: string) => {
+      setOccasions((prev) => prev.filter((item) => item.id !== id))
+      try {
+        const supabase = createClient()
+        await (supabase as any).from("occasions").delete().eq("id", id)
+        await fetch("/api/admin/revalidate", { method: "POST", body: JSON.stringify({ path: "/" }) })
+      } catch (e) {}
+      showToast("Removed", "Occasion deleted.", "info")
+    },
+    [showToast]
+  )
+
   // Computed Executive Statistics
   const stats = useMemo<AdminStats>(() => {
     const totalSarees = products.length
@@ -905,6 +1104,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         categories,
         collections,
         banners,
+        fabricMaterials,
+        colorShades,
+        occasions,
         orders,
         loading,
         isSupabaseLive,
@@ -941,6 +1143,18 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         updateBanner,
         createBanner,
         deleteBanner,
+
+        updateFabricMaterial,
+        createFabricMaterial,
+        deleteFabricMaterial,
+
+        updateColorShade,
+        createColorShade,
+        deleteColorShade,
+
+        updateOccasion,
+        createOccasion,
+        deleteOccasion,
       }}
     >
       {children}

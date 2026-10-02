@@ -16,15 +16,15 @@ export function calculateDesignCompleteness(
   const missingFields: string[] = []
 
   // 1. Fabric defined (+20%)
-  const hasFabric = Boolean(product.fabric && product.fabric.trim().length > 0)
+  const hasFabric = Boolean((product.fabric && product.fabric.trim().length > 0) || (product.fabric_material_id && product.fabric_material_id.trim().length > 0))
   if (!hasFabric) missingFields.push("Fabric Material")
 
   // 2. Color swatch selected (+20%)
-  const hasColor = Boolean(product.color && product.color.trim().length > 0)
+  const hasColor = Boolean((product.color && product.color.trim().length > 0) || (product.color_shade_id && product.color_shade_id.trim().length > 0))
   if (!hasColor) missingFields.push("Color Shade")
 
   // 3. Occasion categorized (+20%)
-  const hasOccasion = Boolean(product.occasion && product.occasion.trim().length > 0)
+  const hasOccasion = Boolean((product.occasion && product.occasion.trim().length > 0) || (product.occasion_id && product.occasion_id.trim().length > 0))
   if (!hasOccasion) missingFields.push("Occasion Tag")
 
   // 4. Gallery >= 2 images (+20%)
@@ -75,7 +75,7 @@ export function calculateDesignCompleteness(
         description: "Pure Silk, Banarasi, Kanjivaram, Cotton, etc.",
         weight: 20,
         passed: hasFabric,
-        value: product.fabric || null,
+        value: product.fabric_material_id || product.fabric || null,
       },
       color: {
         id: "color",
@@ -83,7 +83,7 @@ export function calculateDesignCompleteness(
         description: "Primary Saree Shade & Palette swatch",
         weight: 20,
         passed: hasColor,
-        value: product.color || null,
+        value: product.color_shade_id || product.color || null,
       },
       occasion: {
         id: "occasion",
@@ -91,7 +91,7 @@ export function calculateDesignCompleteness(
         description: "Wedding, Bridal, Festive Luxe, Casual, etc.",
         weight: 20,
         passed: hasOccasion,
-        value: product.occasion || null,
+        value: product.occasion_id || product.occasion || null,
       },
       images: {
         id: "images",

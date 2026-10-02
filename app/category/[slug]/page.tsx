@@ -25,7 +25,7 @@ async function getCategoryProducts(categoryId: string) {
   const supabase = await createClient()
   const { data } = await supabase
     .from("products")
-    .select("*, product_images(*)")
+    .select("*, product_images(*), fabric_materials(*), color_shades(*), occasions(*)")
     .eq("category_id", categoryId)
     .eq("is_active", true)
     .order("created_at", { ascending: false })

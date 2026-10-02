@@ -19,7 +19,7 @@ async function ProductList({ filter }: { filter: string }) {
     const supabase = createStaticClient()
     let query = supabase
       .from("products")
-      .select(`*, product_images(*)`)
+      .select(`*, product_images(*), fabric_materials(*), color_shades(*), occasions(*)`)
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(8)

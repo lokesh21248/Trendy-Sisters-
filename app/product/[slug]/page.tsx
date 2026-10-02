@@ -37,7 +37,7 @@ export default function ProductPage() {
       setLoading(true)
       let { data } = await supabase
         .from("products")
-        .select("*, product_images(*), categories(*)")
+        .select("*, product_images(*), categories(*), fabric_materials(*), color_shades(*), occasions(*)")
         .eq("slug", slug)
         .eq("is_active", true)
         .maybeSingle()
@@ -45,7 +45,7 @@ export default function ProductPage() {
       if (!data) {
         const { data: byId } = await supabase
           .from("products")
-          .select("*, product_images(*), categories(*)")
+          .select("*, product_images(*), categories(*), fabric_materials(*), color_shades(*), occasions(*)")
           .eq("id", slug)
           .eq("is_active", true)
           .maybeSingle()
@@ -59,7 +59,7 @@ export default function ProductPage() {
       // Related products
       const { data: rel } = await supabase
         .from("products")
-        .select("*, product_images(*)")
+        .select("*, product_images(*), fabric_materials(*), color_shades(*), occasions(*)")
         .eq("category_id", typedData.category_id)
         .eq("is_active", true)
         .neq("id", typedData.id)
@@ -133,7 +133,7 @@ export default function ProductPage() {
     {
       id: "fabric",
       title: "Fabric & Details",
-      content: `Fabric: ${product.fabric || "N/A"} | Color: ${product.color || "N/A"} | Occasion: ${product.occasion || "N/A"}`,
+      content: `Fabric: ${product.fabric_materials?.name || product.fabric || "N/A"} | Color: ${product.color_shades?.name || product.color || "N/A"} | Occasion: ${product.occasions?.name || product.occasion || "N/A"}`,
     },
     {
       id: "care",
